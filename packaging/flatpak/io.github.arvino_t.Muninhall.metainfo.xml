@@ -22,6 +22,9 @@
   </developer>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.3.0" date="2026-10-24">
+      <description><p>The book graph includes your Obsidian wiki, possible tags and an analysis; a daily review of your quotes and a random passage; a reading focus with next-book suggestions; touch scrolling on the main screen.</p></description>
+    </release>
     <release version="1.2.0" date="2026-10-23">
       <description><p>Highlights and notes with four meaning colors, also in PDF; export to an Obsidian vault (LLM Wiki layout) with links back to the quote; reading status and tags in the wiki.</p></description>
     </release>

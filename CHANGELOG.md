@@ -6,6 +6,8 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-10-24
+
 ### Fixed
 - Touch gestures on the main screen: the book grid and the right panel scroll with a finger (kinetic, no
   edge bounce); a swipe over a cover no longer opens the book; a long press opens the book menu once (it
@@ -403,7 +405,8 @@ library. The interface stays the same — "Source" is now the name of a library.
   pitch and a sleep timer.
 - VPN bypass for LitRes (`vpn-bypass/`).
 
-[Unreleased]: https://github.com/arvino-t/muninhall/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/arvino-t/muninhall/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/arvino-t/muninhall/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/arvino-t/muninhall/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/arvino-t/muninhall/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/arvino-t/muninhall/compare/v0.18.0...v1.0.0
