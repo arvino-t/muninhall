@@ -27,6 +27,7 @@ class LibraryView:
         self.app = app
         self.cards: dict = {}
         self.only_downloaded = False
+        self.focus_only = False                # показывать только книги фокуса на развитии
         self._covers_running = 0
         self._cover_queue: list[str] = []
 
@@ -81,6 +82,7 @@ class LibraryView:
         self.menu.addAction(tr("Настройки… (Ctrl+,)"), self.app.show_settings)
         self.menu.addAction(tr("Статистика чтения"), self.app.show_stats_dialog)
         self.menu.addAction(tr("Граф книг (Ctrl+G)"), self.app.show_graph)
+        self.menu.addAction(tr("Фокус на развитии…"), self.app.show_focus_dialog)
         self.menu.addSeparator()
         self.menu.addAction(tr("О приложении"), self.app.on_about)
         menu_btn.clicked.connect(lambda: self.menu.popup(menu_btn.mapToGlobal(QPoint(0, menu_btn.height() + 4))))
@@ -120,6 +122,9 @@ class LibraryView:
         self.recent_panel = RecentPanel(count=2)
         self.recent_panel.activated.connect(self.app.on_book_activated)
         from .review_widget import ReviewPanel
+        from .focus_widget import FocusPanel
+        self.focus_panel = FocusPanel(self.app)                # «Фокус на развитии»: текущий приоритет в чтении
+        self.recent_panel.extra.addWidget(self.focus_panel)
         self.review_panel = ReviewPanel(self.app)              # «Просмотр дня»: моя цитата и отрывок из книги
         self.recent_panel.extra.addWidget(self.review_panel)
         self.review_panel.hide()
@@ -133,9 +138,21 @@ class LibraryView:
     def update_recent_panel(self):
         books = self.app.library.recent(2, self.app.settings.get("lastBook"))
         self.recent_panel.update_books(books, self.app.library)
-        review = not self.review_panel.isHidden()
+        review = not self.review_panel.isHidden() or not self.focus_panel.isHidden()
         # На узком окне (портрет на планшете) панель прячем — книгам нужнее место
         self.recent_panel.setVisible((bool(books) or review) and self.app.window.width() >= 1000)
+
+    def refresh_focus(self):
+        try:
+            self.focus_panel.refresh()
+        except Exception as e:                       # сбой не должен ломать библиотеку
+            from .core import log
+            log("фокус:", e)
+
+    def set_focus_only(self, on: bool):
+        """Фильтр «только книги фокуса»."""
+        self.focus_only = bool(on) and self.app.focus.active is not None
+        self._apply_filter()
 
     def refresh_review(self):
         """«Просмотр дня»: выбрать цитату и отрывок (раз в день) и показать."""
@@ -411,6 +428,8 @@ class LibraryView:
         """Источник, подкаталог и «только скачанные» — то, к чему относятся счётчики статусов."""
         if self.only_downloaded and not self.app.library.file_path(book):
             return False
+        if self.focus_only and not self.app.focus.contains(book):
+            return False
         key = self.app.settings.get("libraryType", "all")
         if key != "all":
             owner = self._filter_owner(key)
@@ -598,6 +617,12 @@ class LibraryView:
         if nxt:
             menu.addAction(tr('Следующая в серии: {0}', nxt.get('title')),
                            lambda: self.app.on_book_activated(nxt["id"]))
+        if self.app.focus.active:
+            if self.app.focus.contains(book):
+                menu.addAction(tr("Убрать из фокуса"), lambda: self.app.toggle_focus_book(book, False))
+            else:
+                menu.addAction(tr("В фокус «{0}»", self.app.focus.active["name"]),
+                               lambda: self.app.toggle_focus_book(book, True))
         if book.get("source") in ("folder", "local") and self.app.obsidian.card_of(book)[0] is not None:
             from .tags_dialog import show_tags_dialog
             menu.addAction(tr("Теги…"), lambda: show_tags_dialog(self.app, book))     # карточка в вики

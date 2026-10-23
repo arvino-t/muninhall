@@ -183,6 +183,63 @@ class ObsidianExport(QObject):
         rel = self.page_rel(book, card)
         return v.obsidian_uri(rel) if v.read_page(rel) is not None else None
 
+    # --- фокус на развитии: страница в вики (её читает и планирование ассистента)
+
+    def export_focus(self):
+        """wiki/plans/Фокус — <тема>.md: цель, теги, прогресс, книги со ссылками на карточки и выделения."""
+        focus = getattr(self.app, "focus", None)
+        f = focus.active if focus else None
+        if not self.enabled or not f:
+            return
+        v = self.vault()
+        if not v:
+            return
+        from .focus_dialog import kind_names
+        p = focus.progress(f)
+        kinds = kind_names()
+        today = date.today().isoformat()
+        rel = f"wiki/plans/{safe_name(tr('Фокус — {0}', f['name']))}.md"
+
+        def book_line(b):
+            card = v.find_card(self.app.library.file_path(b), b.get("title"))
+            title = b.get("title") or ""
+            ref = f"[[{v.card_link(card)[2:-2]}|{title}]]" if card else title
+            hl = self.page_rel(b, card)
+            has_hl = v.read_page(hl) is not None
+            return f"- {ref}" + (f" · [[{hl[5:-3]}|{tr('выделения')}]]" if has_hl else "")
+        groups = {"reading": [], "unread": [], "finished": []}
+        for b in focus.ranked(f) + [b for b in p["books"] if self.app.library.status(b) == "finished"]:
+            groups[self.app.library.status(b)].append(b)
+        lines = [BLOCK_START, tr("<!-- Блок обновляет Muninhall. Свои цели и выводы пишите выше или ниже. -->"),
+                 "", f"**{tr('Теги фокуса')}:** " + ", ".join(f"{n} ({kinds.get(k, k)})" for k, n in f["labels"]),
+                 f"**{tr('Прогресс')}:** " + tr("прочитано {0} из {1}, читаю {2}; достаточно — {3}",
+                                                 p["finished"], p["total"], p["reading"], f.get("enough", 5))]
+        if p["enough"]:
+            lines.append(tr("**Прочитано достаточно** — время закрепить в вики (понятия, синтез) и сменить фокус."))
+        for key, title in (("reading", tr("Читаю")), ("unread", tr("Дальше (по релевантности)")),
+                           ("finished", tr("Прочитано"))):
+            if groups[key]:
+                lines += ["", f"## {title}", *(book_line(b) for b in groups[key][:40])]
+        lines.append(BLOCK_END)
+        header = {"type": "plan", "horizon": "focus", "title": tr("Фокус — {0}", f["name"]), "status": "active",
+                  "created": today, "updated": today}
+        # страницы прежних фокусов — уже не активные (по статусу ассистент находит текущий фокус)
+        for page in (v.root / "wiki" / "plans").glob(f"{safe_name(tr('Фокус — {0}', ''))}*.md"):
+            prel = page.relative_to(v.root).as_posix()
+            ptext = v.read_page(prel) or ""
+            if prel != rel and vault_mod.parse_frontmatter(ptext).get("status") == "active":
+                v.write_page(prel, vault_mod.set_frontmatter(ptext, status="archived", updated=today))
+        existing = v.read_page(rel)
+        text = merge_page(existing, header, "\n".join(lines))
+        if text == existing:
+            return
+        try:
+            v.write_page(rel, text)
+            if existing is None:
+                v.append_log(f"## [{today}] plan | {header['title']}")
+        except OSError as e:
+            log("страница фокуса не записана:", rel, e)
+
     # --- статус чтения и теги в карточке книги
 
     def _change_card(self, book, decide):
@@ -255,18 +312,24 @@ class ObsidianExport(QObject):
             for bid, path, title in books:
                 card = files.find_card(path, title)
                 if card:
-                    tags = files.card_props(card).get("tags") or []
+                    props = files.card_props(card)
+                    tags = props.get("tags") or []
                     tags = [tags] if isinstance(tags, str) else tags
-                    out[bid] = [str(t).lstrip("#") for t in tags if str(t).strip()]
+                    topic = re.sub(r"^\[\[(?:[^|\]]*\|)?([^\]]*)\]\]$", r"\1", str(props.get("topic") or "")).strip()
+                    out[bid] = {"tags": [str(t).lstrip("#") for t in tags if str(t).strip()], "topic": topic}
             self.tags_loaded.emit(out)
         vault_mod.in_background(work)
 
     def _apply_tags(self, tags: dict):
         for bid, book in self.app.library.books.items():
-            if tags.get(bid):
-                book["vault_tags"] = tags[bid]
-            else:
-                book.pop("vault_tags", None)
+            info = tags.get(bid) or {}
+            for key, value in (("vault_tags", info.get("tags")), ("vault_topic", info.get("topic"))):
+                if value:
+                    book[key] = value
+                else:
+                    book.pop(key, None)
+        for cb in list(getattr(self, "on_tags_loaded", [])):
+            cb()
         graph = getattr(self.app, "graph_page", None)
         if graph is not None:
             graph.refresh()

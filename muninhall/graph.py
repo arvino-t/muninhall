@@ -46,7 +46,7 @@ def in_scope(book, scope: str) -> bool:
     return book.get("library") == scope
 
 
-def build_graph(lib, scope: str = "all", wiki: dict | None = None) -> dict:
+def build_graph(lib, scope: str = "all", wiki: dict | None = None, focus=None) -> dict:
     """Узлы и рёбра для всех видов тегов выбранной библиотеки; фильтрует уже страница.
 
     wiki — граф хранилища Obsidian: {"graph": WikiGraph, "cards": {id книги: «sources/Имя»},
@@ -103,12 +103,25 @@ def build_graph(lib, scope: str = "all", wiki: dict | None = None) -> dict:
     pagelinks, ghosts, ghostlinks = [], [], []
     if wiki:
         _add_wiki(wiki, nodes, links, tags, pagelinks, ghosts, ghostlinks)
+    focus_info = None
+    if focus is not None and focus.active:          # «Фокус на развитии»: его книги и теги отмечены на графе
+        from .focus import norm
+        f = focus.active
+        wanted = norm(f.get("labels") or [])
+        for n in nodes:
+            if focus.contains(lib.books[n["id"]], f):
+                n["focus"] = True
+        for t in tags.values():
+            if (t["kind"], t["label"].lower()) in wanted:
+                t["focus"] = True
+        focus_info = {"name": f["name"]}
     return {
         "nodes": nodes + list(tags.values()),
         "links": links,
         "pagelinks": pagelinks,          # страница вики ↔ страница вики
         "ghosts": ghosts,                # возможные теги и страницы, которых ещё нет
         "ghostlinks": ghostlinks,
+        "focus": focus_info,
         "kinds": [{"id": k, "label": label, "color": color, "on": on} for k, label, color, on in KINDS],
         "single": scope != "all",          # одна библиотека — переключатель «ЛитРес / Мои» не нужен
         "i18n": web_strings(),
@@ -157,7 +170,8 @@ class GraphPage(QWidget):
         self._sync_subtitle()
 
     def _data_js(self) -> str:
-        return json.dumps(build_graph(self.app.library, self.scope, self._wiki()), ensure_ascii=False)
+        return json.dumps(build_graph(self.app.library, self.scope, self._wiki(), getattr(self.app, "focus", None)),
+                          ensure_ascii=False)
 
     def _wiki(self) -> dict | None:
         """Граф хранилища Obsidian и карточки книг выбранной библиотеки (None — хранилища нет)."""

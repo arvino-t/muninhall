@@ -22,6 +22,7 @@ Reader), briefly *Shelfwise* in 0.16; data from the previous versions is migrate
   ways, download one book or all of them at once; can be disconnected.
 - **Reader** — page turning by tap, swipe and keys; themes, fonts and layout; contents; gestures;
   auto page turn; read aloud with sentence highlighting; PDF via pdf.js.
+- **Growth focus** — your current reading priority: next relevant book, progress, a nudge to switch topics.
 - **Daily review** — one of your quotes by spaced repetition and a random passage from a book you read.
 - **Highlights and notes** — four meaning colors (important, advice, concept, question) and notes in
   EPUB, FB2, MOBI and PDF; a list of quotes per book.
@@ -124,6 +125,7 @@ Environment variables:
 | `muninhall/obsidian.py` | export to the vault: highlight pages, reading status, tags |
 | `muninhall/wiki_graph.py` | the wiki graph for the book graph (pages, links, cards) and possible tags |
 | `muninhall/review.py`, `review_widget.py` | daily review: spaced repetition of highlights, random passages; the panel section |
+| `muninhall/focus.py`, `focus_dialog.py`, `focus_widget.py` | growth focus: focus books, next book, switch advice; dialog; panel section |
 | `muninhall/tags_dialog.py` | the book's "Tags" dialog |
 | `muninhall/player.py` | audiobook player (QtMultimedia), M4B chapter parsing |
 | `muninhall/settings.py` | settings page (tabs: General, Reading, Integrations, Backups, Advanced) |

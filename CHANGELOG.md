@@ -7,6 +7,14 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
 ## [Unreleased]
 
 ### Added
+- **Growth focus** — the current reading priority: a topic and its tags (books with them join the focus;
+  single books can be added or removed), one active focus with an archive. The right panel shows progress
+  and the next book (started first, then by relevance: matching tags and closeness to the focus books
+  already read) and similar books outside the focus; a "focus only" library filter; a toast with the next
+  focus book after finishing one. When enough is read (a threshold, 5 books by default, or 70%), it
+  suggests consolidating in the wiki and changing the focus, offering large topics that do not overlap it.
+  Used by the daily review, the graph (ringed nodes, progress and adjacent topics in the analysis) and
+  Obsidian (`wiki/plans/Фокус — <topic>.md`, read by the local assistant's planning).
 - **Daily review** in the library's right panel: one of your highlights chosen by spaced repetition
   ("Remember" — 3, 8, 20… days, "Later" — tomorrow; advice and important first) and a random complete
   paragraph from an EPUB or PDF book you are reading or have read; open either in the book (it jumps to the

@@ -22,6 +22,8 @@ the knowledge base; the app talks to it through the Obsidian CLI, with a plain-f
 - [ ] **Daily review — next:** copy the day's quotes to the Obsidian daily note (the Daily notes core plugin
   is off in the vault — decide the folder), a history of answers, FB2/MOBI passages.
 - [ ] **Singularity reminders from books** — plan separately how to present them (tasks, habits, notes).
+- [ ] **Growth focus — next:** a deadline and a reading pace per focus; a history view of past focuses
+  (what was read, highlights, wiki pages created); Singularity task for the focus.
 - [ ] **Projects:** `wiki/projects/` pages; the app shows books, quotes and concepts for a project.
 
 ## Reader

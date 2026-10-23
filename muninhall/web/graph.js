@@ -230,6 +230,14 @@ function draw() {
             ctx.fillStyle = n.color
             ctx.fill()
         }
+        if (n.focus) {                       // книга или тег фокуса на развитии — кольцо акцентного цвета
+            ctx.lineWidth = 2.2 / view.k
+            ctx.strokeStyle = data.theme.accent
+            ctx.beginPath()
+            ctx.arc(n.x, n.y, n.r + 2.5 / view.k, 0, Math.PI * 2)
+            ctx.stroke()
+            ctx.lineWidth = 1 / view.k
+        }
         if (n === selected || matches(n)) {
             ctx.lineWidth = 2 / view.k
             ctx.strokeStyle = th.text
@@ -513,6 +521,23 @@ function renderAnalysis() {
         return sec
     }
     box.replaceChildren()
+    if (data.focus) {                        // фокус на развитии: прогресс по книгам графа и смежные темы
+        const fb = real.filter(n => n.kind === 'book' && n.focus)
+        const t = { books: fb.length, finished: 0, reading: 0, unread: 0 }
+        for (const b of fb) t[b.status || 'unread']++
+        const near = new Map()
+        for (const b of fb) for (const id of nb.get(b.id)) {
+            const n = byId.get(id)
+            if (n && n.kind !== 'book' && !n.focus) near.set(id, (near.get(id) || 0) + 1)
+        }
+        const adjacent = [...near.entries()].filter(([, c]) => c >= 2).sort((a, b) => b[1] - a[1]).slice(0, 5)
+        const head = el('div', 'item')
+        head.append(el('span', 'name', T('«{0}»: книг {1}', data.focus.name, t.books)))
+        if (t.books) head.append(bar(t))
+        box.append(section(T('Фокус на развитии'), [head, ...adjacent.map(([id, c]) =>
+            item(byId.get(id), T('смежная тема: {0} — {1} книг фокуса', byId.get(id).label, c)))],
+            T('В этом графе нет книг фокуса')))
+    }
     const books = real.filter(n => n.kind === 'book')
     const done = books.filter(b => b.status === 'finished').length
     box.append(el('div', 'muted', T('Книг: {0} · прочитано {1} · читаю {2} · тем и тегов: {3}', books.length, done,

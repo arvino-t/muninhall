@@ -34,6 +34,7 @@ FILES = {
     "stats.json": STATS_FILE,
     "highlights.json": HIGHLIGHTS_FILE,
     "review.json": DATA_DIR / "review.json",
+    "focus.json": DATA_DIR / "focus.json",
     "singularity.json": SINGULARITY_FILE,
 }
 PREFIX = "muninhall-backup-"

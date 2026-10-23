@@ -17,6 +17,7 @@ in Russian and English.
 - [The library view](#the-library-view)
 - [Reading](#reading)
 - [Highlights and notes](#highlights-and-notes)
+- [Growth focus](#growth-focus)
 - [Daily review](#daily-review)
 - [Audiobooks](#audiobooks)
 - [Continue reading and auto-resume](#continue-reading-and-auto-resume)
@@ -176,6 +177,25 @@ reader's header lists all quotes of the book in order (color, chapter, note); a 
 
 Highlights of your own books are stored in their library's `.library/` and travel with the folder; those
 of LitRes books are in the app data. Everything goes into backups.
+
+## Growth focus
+
+Your current reading priority: the topic you are developing now. Set it in the menu → "Growth focus…" or
+with "Set focus" in the right panel.
+
+- **A focus** is a name and tags (genres, LitRes and wiki tags, topics, series, authors): books with them
+  join the focus automatically. Add or remove a single book from its menu ("Add to focus", "Remove from
+  focus"). One focus is active; previous ones stay in the archive, and any of them can become current again.
+- **The right panel** shows progress (read, reading, total) and the next book: the started one first, then
+  the most relevant by matching tags and closeness to the focus books you have already read; similar books
+  outside the focus; "All focus books" leaves only them in the library. Finish a focus book and the app
+  suggests the next one.
+- **So you don't get stuck in one topic**: once you have read "enough" (set in the focus window, 5 books
+  by default, or 70% of the focus books), the app suggests consolidating it in the wiki and changing the
+  focus, with candidates — large topics that do not overlap the current one.
+- The focus is used by the **daily review** (quotes and passages from focus books first), the **graph**
+  (focus books and tags are ringed, the analysis shows progress and adjacent topics) and **Obsidian**: the
+  page `wiki/plans/Focus — <topic>.md` with tags, progress and books, which the local assistant uses for plans.
 
 ## Daily review
 

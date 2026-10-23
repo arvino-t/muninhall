@@ -28,6 +28,7 @@ from .appearance import SHORTCUTS, Appearance
 from .config import Settings
 from .highlights import HighlightStore
 from .obsidian import ObsidianExport
+from .focus import FocusStore
 from .review import DailyReview
 from .library import LibraryView
 from .model import Library
@@ -138,7 +139,9 @@ class App(QObject, Appearance):
         # Выделения и заметки; выгрузка их, статуса чтения и тегов в хранилище Obsidian (второй мозг)
         self.highlights = HighlightStore(self.library, parent=self)
         self.obsidian = ObsidianExport(self, parent=self)
-        self.review = DailyReview(self.library, self.highlights)     # «Просмотр дня»
+        self.focus = FocusStore(self.library)                        # «Фокус на развитии»
+        self.review = DailyReview(self.library, self.highlights, focus=self.focus)     # «Просмотр дня»
+        self.obsidian.on_tags_loaded = [self.on_focus_changed]       # теги вики могли изменить книги фокуса
         # Автоматические резервные копии: проверка через минуту после запуска и раз в час
         self._backup_timer = QTimer(self, interval=3600_000)
         self._backup_timer.timeout.connect(self.auto_backup)
@@ -217,6 +220,7 @@ class App(QObject, Appearance):
         QTimer.singleShot(0, self._open_last_book)
         QTimer.singleShot(2500, self.obsidian.load_tags)     # теги карточек книг из хранилища — для графа
         QTimer.singleShot(1800, self.library_view.refresh_review)   # «Просмотр дня» — когда окно уже на экране
+        QTimer.singleShot(1700, self.library_view.refresh_focus)
         QTimer.singleShot(1500, self.library_view._make_pdf_covers)
         # Пока окно открыто — тихо подтягиваем с ЛитРес прочитанное на других устройствах
         self.litres_lib.apply_remote_sync()
@@ -398,6 +402,7 @@ class App(QObject, Appearance):
         if finished:
             self.library.reading.mark_finished(book["id"])
         self.obsidian.on_finished(book, finished)
+        self.on_focus_changed(export_only=False)
         if auto:
             self._toast_finished(book, tr("Книга дочитана — отмечена прочитанной"))
         if book.get("source") != "litres" or not self.litres.logged_in:
@@ -412,8 +417,20 @@ class App(QObject, Appearance):
         self.litres.set_finished(book["id"], finished, done)
 
     def _toast_finished(self, book, text):
-        """Уведомление о дочитанной книге; если есть следующая в серии — кнопка «Дальше»."""
+        """Уведомление о дочитанной книге; следующая в серии или по фокусу — кнопка «Открыть»."""
         nxt = self.library.next_in_series(book)
+        if not nxt and self.focus.contains(book):
+            p = self.focus.progress()
+            if p["enough"]:
+                self.toast(tr("{0}. По фокусу «{1}» прочитано достаточно — пора закрепить и сменить фокус",
+                              text, self.focus.active["name"]), button=tr("Фокус"),
+                           on_button=self.show_focus_dialog, timeout=12000)
+                return
+            nxt = p["next"]
+            if nxt:
+                self.toast(tr("{0}. Дальше по фокусу: «{1}»", text, nxt.get("title")), button=tr("Открыть"),
+                           on_button=lambda: self.on_book_activated(nxt["id"]), timeout=10000)
+                return
         if nxt:
             self.toast(tr('{0}. Следующая в серии: «{1}»', text, nxt.get('title')), button=tr("Открыть"),
                        on_button=lambda: self.on_book_activated(nxt["id"]), timeout=10000)
@@ -447,6 +464,29 @@ class App(QObject, Appearance):
         self.pop_to_library()
         self.reader = ReaderPage(self, book, path)
         self.push(self.reader)
+
+    # --- фокус на развитии
+
+    def show_focus_dialog(self):
+        from .focus_dialog import show_focus_dialog
+        show_focus_dialog(self)
+
+    def toggle_focus_book(self, book, inside: bool):
+        self.focus.toggle_book(book, inside)
+        self.on_focus_changed()
+
+    def on_focus_changed(self, export_only=False):
+        """Фокус или его книги изменились: панель, фильтр, граф, страница фокуса в вики."""
+        view = self.library_view
+        if not self.focus.active and view.focus_only:
+            view.set_focus_only(False)
+        elif view.focus_only:
+            view._apply_filter()
+        view.refresh_focus()
+        view.update_recent_panel()
+        if self.graph_page is not None:
+            self.graph_page.refresh()
+        self.obsidian.export_focus()
 
     def open_link(self, url: str):
         """Ссылка muninhall://open?book=<id>&hl=<id выделения> (из Obsidian): книга на этом месте."""

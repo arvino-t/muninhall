@@ -123,9 +123,10 @@ def pdf_passage(path: Path, rnd: random.Random) -> dict | None:
 
 
 class DailyReview:
-    def __init__(self, library, highlights, path=REVIEW_FILE):
+    def __init__(self, library, highlights, path=REVIEW_FILE, focus=None):
         self.library = library
         self.highlights = highlights
+        self.focus = focus                            # FocusStore: книги фокуса — в первую очередь
         self.path = path
         self.data = load_json(path, {})
         self.data.setdefault("srs", {})               # {id выделения: {"due", "interval", "shown"}}
@@ -146,14 +147,15 @@ class DailyReview:
         t = today.isoformat()
 
         def key(item):
-            _book, h = item
+            book, h = item
             st = srs.get(h["id"])
             rank = PREFER.index(h.get("color")) if h.get("color") in PREFER else len(PREFER)
+            out_of_focus = not self._in_focus(book)   # книги фокуса — раньше остальных в той же группе
             if st is None:                            # ещё не показывали: после подошедших по сроку
-                return (1, rank, -(h.get("created") or 0))
+                return (1, out_of_focus, rank, -(h.get("created") or 0))
             if st["due"] <= t:
-                return (0, st["due"], rank)
-            return (2, st["due"], rank)
+                return (0, out_of_focus, st["due"], rank)
+            return (2, out_of_focus, st["due"], rank)
         return min(items, key=key)
 
     def mine(self, today: date | None = None) -> tuple[dict, dict] | None:
@@ -193,7 +195,11 @@ class DailyReview:
         books = [b for b in self.library.ordered() if b.get("format") in ("epub", "ios.epub", "pdf")
                  and self.library.file_path(b) and not b.get("is_audio")]
         read = [b for b in books if self.library.status(b) in ("reading", "finished")]
-        return read or books
+        focus = [b for b in books if self._in_focus(b)]
+        return focus or read or books
+
+    def _in_focus(self, book) -> bool:
+        return bool(self.focus and self.focus.active and self.focus.contains(book))
 
     def random_passage(self, today: date | None = None) -> tuple[dict, dict] | None:
         """(книга, {"section", "text", "prefix", "suffix"}) на сегодня."""

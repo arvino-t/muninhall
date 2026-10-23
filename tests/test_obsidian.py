@@ -130,3 +130,23 @@ esac
     assert card.read_text() == CARD                       # CLI справился — файл приложение не трогало
     monkeypatch.setattr(vault, "obsidian_running", lambda: False)
     assert vault.connect(app.settings).kind == "files" and vault.status(app.settings)[0] == "cli-closed"
+
+
+def test_focus_page_in_wiki(tmp_path):
+    from muninhall.focus import FocusStore
+    root, app, book = setup(tmp_path)
+    book["tags"] = ["квантование"]
+    app.focus = FocusStore(app.library, path=tmp_path / "focus.json")
+    ex = ObsidianExport(app)
+    app.focus.set_focus("Квантование", [("tag", "квантование")])
+    ex.export_focus()
+    page = root / "wiki" / "plans" / "Фокус — Квантование.md"
+    text = page.read_text()
+    props = vault.parse_frontmatter(text)
+    assert props["type"] == "plan" and props["horizon"] == "focus" and props["status"] == "active"
+    assert "[[sources/B|" in text and "прочитано 0 из 1" in text and "## Дальше (по релевантности)" in text
+    assert (root / "wiki" / "log.md").read_text().count("plan | Фокус — Квантование") == 1
+    app.focus.set_focus("Другое", [("tag", "квантование")])           # новый фокус — прежняя страница в архив
+    ex.export_focus()
+    assert vault.parse_frontmatter(page.read_text())["status"] == "archived"
+    assert vault.parse_frontmatter((root / "wiki" / "plans" / "Фокус — Другое.md").read_text())["status"] == "active"
