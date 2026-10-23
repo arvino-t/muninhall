@@ -150,7 +150,7 @@ def scenario():
             ok(f"{name}: ссылка muninhall:// открыла книгу", a.reader is not None and a.reader.book["id"] == book["id"])
         a.go_back()
         yield 800
-    a.obsidian.export_pending()
+    a.highlight_pages.export_pending()
     pages = sorted((VAULT / "wiki" / "highlights").glob("*.md"))
     ok("страницы в хранилище", len(pages) == 2, ", ".join(p.name[:40] for p in pages))
     if pages:

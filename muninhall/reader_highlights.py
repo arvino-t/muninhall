@@ -177,9 +177,9 @@ class ReaderHighlights(QObject):
         self.reader.js(f"window.reader?.goToHighlight({json.dumps(hid)})")
 
     def _open_obsidian(self):
-        exporter = self.app.obsidian
-        exporter.export_book(self.book)         # не ждём таймера — страница должна быть свежей
-        uri = exporter.open_page(self.book)
+        pages = self.app.highlight_pages
+        pages.export_book(self.book)            # не ждём таймера — страница должна быть свежей
+        uri = pages.open_page(self.book)
         if uri:
             QDesktopServices.openUrl(QUrl(uri))
         self.popover.hide()

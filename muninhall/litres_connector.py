@@ -184,7 +184,7 @@ class LitresConnector(QObject):
             return
         self.download_book(book, on_finished=finished)
 
-    def _extract_zip(self, zip_path: Path, dest_dir: Path, on_done):
+    def extract_zip(self, zip_path: Path, dest_dir: Path, on_done):
         """Распаковка MP3-архива в отдельном потоке (архивы бывают большими)."""
         bridge = _Bridge(self)
         bridge.done.connect(lambda err, _x: (on_done(err), bridge.deleteLater()))
@@ -256,7 +256,7 @@ class LitresConnector(QObject):
             self.app.toast(tr('Продолжаю с места на ЛитРес — {0}%', round(remote)), button=tr("Вернуть"),
                        on_button=undo, timeout=8000)
 
-    def _fetch_details(self):
+    def fetch_details(self):
         """Жанры и теги книг ЛитРес — их нет в списке книг, только в карточке каждой.
         Подгружаем в фоне по одной (раз на книгу), потом обновляем граф."""
         if self._details_running or not self.app.litres.logged_in:
@@ -399,7 +399,7 @@ class _SyncRun:
         app = self.app
         app.set_syncing(False)
         app.library_view.refresh_library()
-        self.c._fetch_details()
+        self.c.fetch_details()
         # Открытая книга могла уйти дальше на ЛитРес — подтягиваем место
         for bid in {app.reader.book["id"] if app.reader else None, app.player.book_id} - {None}:
             if bid in app.library.books:
@@ -482,7 +482,7 @@ class _Download:
                 self.fail(tr('Не удалось распаковать аудиокнигу: {0}', error))
             else:
                 self.finished_ok(folder.name, "mp3dir", folder)
-        self.c._extract_zip(archive, folder, extracted)
+        self.c.extract_zip(archive, folder, extracted)
 
     def finished_ok(self, file_name, fmt_saved, path):
         self._done()

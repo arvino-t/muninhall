@@ -11,49 +11,13 @@ import time
 import uuid
 from collections import Counter
 
+from .book_tags import book_labels, norm
 from .core import DATA_DIR, load_json, save_json
 
 FOCUS_FILE = DATA_DIR / "focus.json"
 MAX_ACTIVE = 2               # одновременно — не больше двух фокусов (чтобы это оставалось фокусом)
 ENOUGH_DEFAULT = 5            # столько прочитанных книг обычно хватает, чтобы разобраться в теме
 SHARE_ENOUGH = 0.7            # …или прочитана такая доля книг фокуса (если их хотя бы 3)
-
-KIND_NAMES = ("genre", "tag", "wiki", "wtopic", "topic", "folder", "series", "author")
-
-
-def book_labels(lib, book) -> set[tuple[str, str]]:
-    """Теги книги как в графе: {(вид, подпись)}; вложенный тег вики «ml/сжатие» даёт и «ml»."""
-    out = set()
-
-    def add(kind, name):
-        name = (name or "").strip()
-        if name:
-            out.add((kind, name))
-    for g in book.get("genres") or []:
-        add("genre", g)
-    for t in book.get("tags") or []:
-        add("tag", t)
-    for t in book.get("vault_tags") or []:
-        parts = t.split("/")
-        for i in range(1, len(parts) + 1):
-            add("wiki", "/".join(parts[:i]))
-    add("wtopic", book.get("vault_topic"))
-    for fid in book.get("folders") or []:
-        add("folder", lib.folders.get(fid))
-    if book.get("series"):
-        add("series", book["series"].get("name"))
-    for a in book.get("authors") or []:
-        add("author", a)
-    if book.get("collection"):
-        parts = [p.strip() for p in book["collection"].split("/") if p.strip()]
-        add("topic", parts[1] if len(parts) > 1 else parts[0])
-    return out
-
-
-def norm(labels) -> set[tuple[str, str]]:
-    """Для сравнения — без регистра."""
-    return {(k, n.lower()) for k, n in labels}
-
 
 class FocusStore:
     def __init__(self, library, path=FOCUS_FILE):

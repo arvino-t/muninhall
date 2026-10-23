@@ -56,7 +56,7 @@ def fake_app(lib, litres):
         singularity=SimpleNamespace(schedule=lambda soon: None), toast=toasts.append,
         set_syncing=flags.append, set_finished=lambda book, value: book.update(finished=value))
     connector = SimpleNamespace(app=app, downloading=set(), flush_folder_ops=lambda then: then(),
-                                _fetch_details=lambda: None, apply_remote_position=lambda book: None)
+                                fetch_details=lambda: None, apply_remote_position=lambda book: None)
     return app, connector, flags
 
 

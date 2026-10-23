@@ -5,7 +5,9 @@ from types import SimpleNamespace
 from muninhall import folder_scan, vault
 from muninhall.highlights import HighlightStore
 from muninhall.model import Library
-from muninhall.obsidian import BLOCK_END, BLOCK_START, ObsidianExport
+from muninhall.focus_page import FocusPage
+from muninhall.obsidian import BLOCK_END, BLOCK_START, HighlightPages, VaultLink
+from muninhall.wiki_cards import WikiCards
 from tests.test_folder_library import bid_of, make_lib
 
 CARD = """---
@@ -60,7 +62,7 @@ def test_file_vault_cards_props_tags(tmp_path):
 
 def test_export_highlights_page_keeps_user_text(tmp_path):
     root, app, book = setup(tmp_path)
-    ex = ObsidianExport(app)
+    ex = HighlightPages(VaultLink(app.settings, app.library), app.library, app.highlights)
     h1 = app.highlights.add(book, section=2, text="Первая  цитата", color="advice", chapter="Глава 1",
                             note="применить завтра")
     app.highlights.add(book, section=5, text="Вторая", color="question", chapter="Глава 2")
@@ -89,7 +91,7 @@ def test_export_highlights_page_keeps_user_text(tmp_path):
 def test_reading_status_goes_to_card(tmp_path, monkeypatch):
     root, app, book = setup(tmp_path)
     monkeypatch.setattr(vault, "in_background", lambda fn, *a, **k: fn(*a, **k))
-    ex = ObsidianExport(app)
+    ex = WikiCards(VaultLink(app.settings, app.library), app.library)
     card = root / "wiki" / "sources" / "B.md"
     ex.on_reading(book)
     assert vault.parse_frontmatter(card.read_text())["reading"] is True
@@ -137,9 +139,10 @@ def test_focus_page_in_wiki(tmp_path):
     root, app, book = setup(tmp_path)
     book["tags"] = ["квантование"]
     app.focus = FocusStore(app.library, path=tmp_path / "focus.json")
-    ex = ObsidianExport(app)
+    link = VaultLink(app.settings, app.library)
+    ex = FocusPage(link, app.library, app.focus, HighlightPages(link, app.library, app.highlights))
     app.focus.set_focus("Квантование", [("tag", "квантование")])
-    ex.export_focus()
+    ex.export()
     page = root / "wiki" / "plans" / "Фокус — Квантование.md"
     text = page.read_text()
     props = vault.parse_frontmatter(text)
@@ -147,6 +150,6 @@ def test_focus_page_in_wiki(tmp_path):
     assert "[[sources/B|" in text and "прочитано 0 из 1" in text and "## Дальше (по релевантности)" in text
     assert (root / "wiki" / "log.md").read_text().count("plan | Фокус — Квантование") == 1
     app.focus.set_focus("Другое", [("tag", "квантование")], replace=app.focus.active["id"])   # замена фокуса
-    ex.export_focus()
+    ex.export()
     assert vault.parse_frontmatter(page.read_text())["status"] == "archived"
     assert vault.parse_frontmatter((root / "wiki" / "plans" / "Фокус — Другое.md").read_text())["status"] == "active"

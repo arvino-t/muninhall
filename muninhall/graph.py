@@ -12,8 +12,9 @@ from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from . import libraries, style
+from .book_tags import book_labels, norm
 from .core import SCHEME, STORE_GRAPH, folder_store_dir, load_json, save_json
-from .reader import _ReaderWebPage, reader_profile
+from .reader import BridgePage, reader_profile
 from .widgets import (HeaderBar, IconButton, LibraryScopeCombo)
 from .i18n import tr, web_strings
 
@@ -52,11 +53,6 @@ def build_graph(lib, scope: str = "all", wiki: dict | None = None, focus=None) -
     wiki — граф хранилища Obsidian: {"graph": WikiGraph, "cards": {id книги: «sources/Имя»},
     "texts": {id книги: текст карточки}} (см. wiki_graph.py)."""
     dark = style.is_dark()
-    status_color = {
-        "reading": style.ACCENT,
-        "finished": "#57e389" if dark else "#26a269",
-        "unread": "#8f8d96" if dark else "#9a98a3",
-    }
     nodes, links, tags = [], [], {}
 
     def tag(kind, name, bid):
@@ -71,49 +67,15 @@ def build_graph(lib, scope: str = "all", wiki: dict | None = None, focus=None) -
         if not in_scope(book, scope):
             continue
         bid = book["id"]
-        authors = book.get("authors") or []
-        status = lib.status(book)
-        nodes.append({
-            "id": bid, "kind": "book", "label": book.get("title") or bid, "status": status,
-            "sub": ", ".join(authors[:2]) or book.get("collection", ""),
-            "src": "mine" if book.get("source") in ("folder", "local") else "litres",
-            "pct": lib.percent(book) or 0,
-            "color": status_color.get(status, status_color["unread"]),
-        })
-        for g in book.get("genres") or []:
-            tag("genre", g, bid)
-        for t in book.get("tags") or []:
-            tag("tag", t, bid)
-        # теги карточки книги в Obsidian; вложенный «ml/сжатие» — ещё и родитель «ml»
-        for t in book.get("vault_tags") or []:
-            parts = t.split("/")
-            for i in range(1, len(parts) + 1):
-                tag("wiki", "/".join(parts[:i]), bid)
-        for fid in book.get("folders") or []:
-            tag("folder", lib.folders.get(fid), bid)
-        if book.get("series"):
-            tag("series", book["series"].get("name"), bid)
-        for a in authors:
-            tag("author", a, bid)
-        if book.get("collection"):
-            # «articles / security» → тема «security»; «others / cpp» → «cpp»
-            parts = [p.strip() for p in book["collection"].split("/") if p.strip()]
-            tag("topic", parts[1] if len(parts) > 1 else parts[0], bid)
+        nodes.append(_book_node(lib, book, dark))
+        for kind, name in sorted(book_labels(lib, book)):   # правила — в book_tags.py, общие с фокусом
+            if kind != "wtopic":                     # темы вики — страницами со ссылками (_add_wiki)
+                tag(kind, name, bid)
 
     pagelinks, ghosts, ghostlinks = [], [], []
     if wiki:
         _add_wiki(wiki, nodes, links, tags, pagelinks, ghosts, ghostlinks)
-    focus_info = None
-    if focus is not None and focus.active:          # «Фокус»: его книги и теги отмечены на графе
-        from .focus import norm
-        wanted = set().union(*(norm(f.get("labels") or []) for f in focus.actives))
-        for n in nodes:
-            if focus.contains(lib.books[n["id"]]):
-                n["focus"] = True
-        for t in tags.values():
-            if (t["kind"], t["label"].lower()) in wanted:
-                t["focus"] = True
-        focus_info = {"name": " · ".join(f["name"] for f in focus.actives)}
+    focus_info = _mark_focus(focus, lib, nodes, tags) if focus is not None and focus.active else None
     return {
         "nodes": nodes + list(tags.values()),
         "links": links,
@@ -132,6 +94,30 @@ def build_graph(lib, scope: str = "all", wiki: dict | None = None, focus=None) -
             "link": "#7d7a86" if dark else "#a8a5b0",
         },
     }
+
+
+def _book_node(lib, book, dark: bool) -> dict:
+    """Узел книги: подпись, авторы, источник, процент; цвет — по статусу (читаю, прочитано, не начата)."""
+    status = lib.status(book)
+    color = {"reading": style.ACCENT, "finished": "#57e389" if dark else "#26a269"}.get(
+        status, "#8f8d96" if dark else "#9a98a3")
+    authors = book.get("authors") or []
+    return {"id": book["id"], "kind": "book", "label": book.get("title") or book["id"], "status": status,
+            "sub": ", ".join(authors[:2]) or book.get("collection", ""),
+            "src": "mine" if book.get("source") in ("folder", "local") else "litres",
+            "pct": lib.percent(book) or 0, "color": color}
+
+
+def _mark_focus(focus, lib, nodes, tags) -> dict:
+    """«Фокус»: его книги и теги отмечены на графе (кольцом); → {"name": названия активных фокусов}."""
+    wanted = set().union(*(norm(f.get("labels") or []) for f in focus.actives))
+    for n in nodes:
+        if focus.contains(lib.books[n["id"]]):
+            n["focus"] = True
+    for t in tags.values():
+        if (t["kind"], t["label"].lower()) in wanted:
+            t["focus"] = True
+    return {"name": " · ".join(f["name"] for f in focus.actives)}
 
 
 class GraphPage(QWidget):
@@ -157,7 +143,7 @@ class GraphPage(QWidget):
 
         from PySide6.QtWebEngineWidgets import QWebEngineView
         self.web = QWebEngineView(self)
-        self.page = _ReaderWebPage(reader_profile(), self._on_message, self)
+        self.page = BridgePage(reader_profile(), self._on_message, self)
         self.web.setPage(self.page)
 
         lay = QVBoxLayout(self)
@@ -262,7 +248,7 @@ class GraphPage(QWidget):
     def _add_suggested_tag(self, label: str, book_ids: list[str]):
         """Предложенный тег — в карточки книг (вложенный тег можно поправить потом в «Теги…»)."""
         from .widgets import confirm
-        exporter = self.app.obsidian
+        exporter = self.app.wiki_cards
         books = [self.app.library.books[b] for b in book_ids if b in self.app.library.books]
         with_cards = [b for b in books if exporter.book_tags(b) is not None]
         tag = re.sub(r"\s+", "-", label.strip().lower())

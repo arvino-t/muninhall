@@ -99,7 +99,9 @@ def open_external(url: QUrl) -> bool:
     return False
 
 
-class _ReaderWebPage(QWebEnginePage):
+class BridgePage(QWebEnginePage):
+    """Страница QtWebEngine со своим каналом сообщений (console с меткой → on_message): читалка и граф."""
+
     def __init__(self, profile, on_message, parent):
         super().__init__(profile, parent)
         self._on_message = on_message
@@ -162,7 +164,7 @@ class ReaderPage(QWidget):
         self._auto_turn = False
 
         self.web = QWebEngineView(self)
-        self.page = _ReaderWebPage(reader_profile(), self._on_message, self)
+        self.page = BridgePage(reader_profile(), self._on_message, self)
         self.web.setPage(self.page)
         self.web.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu if core.DEBUG
                                       else Qt.ContextMenuPolicy.NoContextMenu)
@@ -402,7 +404,7 @@ class ReaderPage(QWidget):
             self.app.note_activity()
             if frac > 0.01 and not getattr(self, "_reading_noted", False):
                 self._reading_noted = True              # карточка книги в вики: reading: true
-                self.app.obsidian.on_reading(self.book)
+                self.app.wiki_cards.on_reading(self.book)
         if msg.get("atEnd") and not self.book.get("finished"):
             self.app.set_finished(self.book, True, auto=True)
         if self._flip_timer.isActive():

@@ -27,7 +27,9 @@ from .singularity import SingularitySync
 from .appearance import SHORTCUTS, Appearance
 from .config import Settings
 from .highlights import HighlightStore
-from .obsidian import ObsidianExport
+from .focus_page import FocusPage
+from .obsidian import HighlightPages, VaultLink
+from .wiki_cards import WikiCards
 from .focus import FocusStore
 from .review import DailyReview
 from .library import LibraryView
@@ -138,10 +140,14 @@ class App(QObject, Appearance):
         self.library.chars_per_min = int(self.settings.get("readingCharsPerMin") or 1300)
         # Выделения и заметки; выгрузка их, статуса чтения и тегов в хранилище Obsidian (второй мозг)
         self.highlights = HighlightStore(self.library, parent=self)
-        self.obsidian = ObsidianExport(self, parent=self)
+        # Хранилище Obsidian (второй мозг): связь, страницы выделений, свойства карточек книг
+        self.obsidian = VaultLink(self.settings, self.library)
+        self.highlight_pages = HighlightPages(self.obsidian, self.library, self.highlights, parent=self)
+        self.wiki_cards = WikiCards(self.obsidian, self.library, parent=self)
         self.focus = FocusStore(self.library)                        # «Фокус»
         self.review = DailyReview(self.library, self.highlights, focus=self.focus)     # «Просмотр дня»
-        self.obsidian.on_tags_loaded = [self.on_focus_changed]       # теги вики могли изменить книги фокуса
+        self.focus_page = FocusPage(self.obsidian, self.library, self.focus, self.highlight_pages)
+        self.wiki_cards.on_tags_loaded.append(self.on_focus_changed)  # теги вики: книги фокуса, граф
         # Автоматические резервные копии: проверка через минуту после запуска и раз в час
         self._backup_timer = QTimer(self, interval=3600_000)
         self._backup_timer.timeout.connect(self.auto_backup)
@@ -218,7 +224,7 @@ class App(QObject, Appearance):
         folder_scan.scan_folders(self.library, self.local_folders())
         self.library_view.refresh_library()
         QTimer.singleShot(0, self._open_last_book)
-        QTimer.singleShot(2500, self.obsidian.load_tags)     # теги карточек книг из хранилища — для графа
+        QTimer.singleShot(2500, self.wiki_cards.load_tags)     # теги карточек книг из хранилища — для графа
         QTimer.singleShot(1800, self.library_view.refresh_review)   # «Просмотр дня» — когда окно уже на экране
         QTimer.singleShot(1700, self.library_view.refresh_focus)
         QTimer.singleShot(1500, self.library_view._make_pdf_covers)
@@ -401,7 +407,7 @@ class App(QObject, Appearance):
         self.library_view.refresh_card(book["id"])
         if finished:
             self.library.reading.mark_finished(book["id"])
-        self.obsidian.on_finished(book, finished)
+        self.wiki_cards.on_finished(book, finished)
         self.on_focus_changed(export_only=False)
         if auto:
             self._toast_finished(book, tr("Книга дочитана — отмечена прочитанной"))
@@ -482,12 +488,12 @@ class App(QObject, Appearance):
         if not self.focus.active and view.focus_only:
             view.set_focus_only(False)
         elif view.focus_only:
-            view._apply_filter()
+            view.refresh_filters()
         view.refresh_focus()
         view.update_recent_panel()
         if self.graph_page is not None:
             self.graph_page.refresh()
-        self.obsidian.export_focus()
+        self.focus_page.export()
 
     def open_link(self, url: str):
         """Ссылка muninhall://open?book=<id>&hl=<id выделения> (из Obsidian): книга на этом месте."""
@@ -628,7 +634,7 @@ class App(QObject, Appearance):
         self.graph_page.fill_scopes(scope)
         self.push(self.graph_page)
         if self.has_litres():
-            self.litres_lib._fetch_details()
+            self.litres_lib.fetch_details()
 
     # --- свои книги и статьи
 
@@ -641,7 +647,7 @@ class App(QObject, Appearance):
         self.library_view._fill_type_combo()
         self.library_view.refresh_library()
         QTimer.singleShot(500, self.library_view._make_pdf_covers)
-        QTimer.singleShot(600, self.obsidian.load_tags)
+        QTimer.singleShot(600, self.wiki_cards.load_tags)
         if report:
             self.toast(tr('Своих книг и статей: {0}', n))
 
@@ -805,7 +811,7 @@ class App(QObject, Appearance):
         self.player.unload()
         self.library.flush()
         self.highlights.flush()
-        self.obsidian.export_pending()
+        self.highlight_pages.export_pending()
         self.settings.save_now()
         if self.reader:
             self.reader.close_page()

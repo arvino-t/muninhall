@@ -122,7 +122,10 @@ Environment variables:
 | `muninhall/reader_highlights.py` | highlights in the reader: list, menu, note dialog |
 | `muninhall/highlights.py` | `HighlightStore`: highlights per book (library `.library/` or app data) |
 | `muninhall/vault.py` | Obsidian vault access: `CliVault` (Obsidian CLI) and `FileVault` (Markdown files) |
-| `muninhall/obsidian.py` | export to the vault: highlight pages, reading status, tags |
+| `muninhall/obsidian.py` | `VaultLink` (the vault connection) and `HighlightPages` (wiki/highlights pages) |
+| `muninhall/wiki_cards.py` | reading status and tags in the books' wiki cards; card tags for the graph and focus |
+| `muninhall/focus_page.py` | the focus page in the wiki (`wiki/plans/Фокус — …`) |
+| `muninhall/book_tags.py` | one set of rules for a book's tags (graph, focus) and their kind names |
 | `muninhall/wiki_graph.py` | the wiki graph for the book graph (pages, links, cards) and possible tags |
 | `muninhall/review.py`, `review_widget.py` | daily review: spaced repetition of highlights, random passages; the panel section |
 | `muninhall/focus.py`, `focus_dialog.py`, `focus_widget.py` | growth focus: focus books, next book, switch advice; dialog; panel section |

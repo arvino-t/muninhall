@@ -49,7 +49,7 @@ class TagsEdit(QLineEdit):
 
 def show_tags_dialog(app, book) -> bool:
     """True — теги изменены."""
-    exporter = app.obsidian
+    exporter = app.wiki_cards
     current = exporter.book_tags(book)
     if current is None:
         app.toast(tr("У книги нет карточки в хранилище Obsidian"))

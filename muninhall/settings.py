@@ -502,14 +502,14 @@ class SettingsPage(QWidget):
             return
         self.app.settings["obsidianVault"] = path
         self.app.obsidian.vault(fresh=True)
-        self.app.obsidian.load_tags()
+        self.app.wiki_cards.load_tags()
         self._sync_vault_row()
 
     def _export_all(self):
         if not self.app.obsidian.vault(fresh=True):
             self.app.toast(tr("Хранилище Obsidian не найдено"))
             return
-        n = self.app.obsidian.export_all()
+        n = self.app.highlight_pages.export_all()
         self.app.toast(tr("Страниц выделений обновлено: {0}", n))
 
     def _set_color_name(self, color, text):

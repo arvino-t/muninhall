@@ -6,6 +6,13 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
 
 ## [Unreleased]
 
+### Changed
+- Internal refactoring (no behaviour change): a book's tags follow one set of rules (`book_tags.py`) for the
+  graph and the focus; the Obsidian exporter is split by responsibility — `VaultLink`, `HighlightPages`,
+  `WikiCards` (`wiki_cards.py`), `FocusPage` (`focus_page.py`) — each with only the dependencies it needs;
+  the focus window is a class; `build_graph` and the focus page are split into small functions; no module
+  uses another module's private names.
+
 ## [1.3.0] — 2026-10-24
 
 ### Fixed
