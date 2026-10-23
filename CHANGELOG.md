@@ -6,6 +6,16 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
 
 ## [Unreleased]
 
+### Added
+- Mastery map ("What I know", menu → "Mastery map"): library topics with a level — not started, getting
+  acquainted, learning, understanding, mastered — from books read and books ingested in the wiki; reading
+  time, quotes and questions per topic; "where to look" tips (started but nothing finished, unanswered
+  questions, read but not consolidated, mastered — change the focus, big untouched topics); "Make it the
+  focus"; a copy in `wiki/plans/Карта освоения.md`.
+
+### Fixed
+- A new wiki page (focus, highlights) got an empty extra `---` pair after its front matter.
+
 ### Changed
 - Internal refactoring (no behaviour change): a book's tags follow one set of rules (`book_tags.py`) for the
   graph and the focus; the Obsidian exporter is split by responsibility — `VaultLink`, `HighlightPages`,

@@ -294,6 +294,9 @@ class App(QObject, Appearance):
             self.graph_page = None
         elif page is self.login_page:
             pass
+        elif getattr(page, "transient", False):     # страница на один показ (например, карта освоения)
+            self.stack.removeWidget(page)
+            page.deleteLater()
         self.library_view.refresh_library()
 
     def toggle_fullscreen(self):
@@ -625,6 +628,11 @@ class App(QObject, Appearance):
             self.toast(tr('Книги теперь в {0}', new_dir) + (tr(' — перенесено файлов: {0}', moved) if moved else ""))
 
     # --- граф книг
+
+    def show_mastery(self):
+        """Карта освоения: что я знаю — темы с уровнем освоения."""
+        from .mastery_page import MasteryPage
+        self.push(MasteryPage(self))
 
     def show_graph(self):
         """Граф библиотеки, выбранной в фильтре «Источник» (или всех)."""

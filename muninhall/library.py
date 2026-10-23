@@ -84,6 +84,7 @@ class LibraryView:
         self.menu.addAction(tr("Статистика чтения"), self.app.show_stats_dialog)
         self.menu.addAction(tr("Граф книг (Ctrl+G)"), self.app.show_graph)
         self.menu.addAction(tr("Фокус…"), self.app.show_focus_dialog)
+        self.menu.addAction(tr("Карта освоения"), self.app.show_mastery)
         self.menu.addSeparator()
         self.menu.addAction(tr("О приложении"), self.app.on_about)
         menu_btn.clicked.connect(lambda: self.menu.popup(menu_btn.mapToGlobal(QPoint(0, menu_btn.height() + 4))))

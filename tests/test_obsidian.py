@@ -73,6 +73,7 @@ def test_export_highlights_page_keeps_user_text(tmp_path):
     assert props["type"] == "highlights" and props["sources"] == ["[[sources/B]]"]
     assert props["file"] == "Books/sub/b.pdf"
     assert "> Первая цитата" in text and "#совет" in text and "#вопрос" in text and "применить завтра" in text
+    assert text.count("---\n") == 2 and "\n---\n---" not in text          # одна шапка, без пустых «---»
     assert f"muninhall://open?book={book['id']}&hl={h1['id']}" in text
     assert text.index("## Глава 1") < text.index("## Глава 2")
     # свои мысли пользователя вне блока сохраняются при следующей выгрузке

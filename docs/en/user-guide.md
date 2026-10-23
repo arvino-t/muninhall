@@ -198,6 +198,24 @@ Your current reading priority: the topic you are developing now. Set it in the m
   (focus books and tags are ringed, the analysis shows progress and adjacent topics) and **Obsidian**: the
   page `wiki/plans/Focus — <topic>.md` with tags, progress and books, which the local assistant uses for plans.
 
+## Mastery map
+
+"What I know": menu → "Mastery map". Library topics (wiki topics, genres, your folders' topics, wiki tags —
+from three books) with a mastery level:
+
+- **Not started → Getting acquainted → Learning → Understanding → Mastered.** The level grows with the books
+  of the topic you have read and with what is ingested in the wiki (a book card with `status: ingested`).
+  "Mastered" means 5 books read and at least 40% of the topic, or 3 read and 2 ingested.
+- For each topic: read out of how many, reading, reading time, quotes and questions from highlights;
+  "Topic books" lists them with a jump to the book; "Make it the focus".
+- **Where to look**: started topics with nothing finished; unanswered questions (pink highlights) with a jump
+  to the question; read but not consolidated by quotes or a summary; mastered topics — time to change the
+  focus; big topics not started yet.
+- Wiki topics that are only a storage folder (e.g. "Книги ЛитРес": those books have their own genres) are
+  not shown.
+- A copy is the page `wiki/plans/Карта освоения.md` (topics table and tips; your own text outside the app's
+  block is kept).
+
 ## Daily review
 
 On the right of the library, under "Continue reading", there are two cards for the day:

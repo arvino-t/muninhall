@@ -94,14 +94,16 @@ class WikiCards(QObject):
                     tags = props.get("tags") or []
                     tags = [tags] if isinstance(tags, str) else tags
                     topic = re.sub(r"^\[\[(?:[^|\]]*\|)?([^\]]*)\]\]$", r"\1", str(props.get("topic") or "")).strip()
-                    out[bid] = {"tags": [str(t).lstrip("#") for t in tags if str(t).strip()], "topic": topic}
+                    out[bid] = {"tags": [str(t).lstrip("#") for t in tags if str(t).strip()], "topic": topic,
+                                "status": str(props.get("status") or "")}
             self.tags_loaded.emit(out)
         vault_mod.in_background(work)
 
     def _apply_tags(self, tags: dict):
         for bid, book in self.library.books.items():
             info = tags.get(bid) or {}
-            for key, value in (("vault_tags", info.get("tags")), ("vault_topic", info.get("topic"))):
+            for key, value in (("vault_tags", info.get("tags")), ("vault_topic", info.get("topic")),
+                               ("vault_status", info.get("status"))):
                 if value:
                     book[key] = value
                 else:

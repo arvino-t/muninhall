@@ -16,9 +16,9 @@ Reviewed: 2026-10-10 (after 1.1.0).
 Goal: see which topics I have mastered, where to look next, which tips and reminders the books give,
 and use the wiki for my own projects (incl. AI). The vault (Karpathy's LLM Wiki in `~/Documents`) is
 the knowledge base; the app talks to it through the Obsidian CLI, with a plain-file fallback.
-- [ ] **Mastery map** (the graph analysis covers topics, read / reading / not started and what's missing):
-  add reading time per topic, highlights and question highlights per topic, a dedicated page outside the
-  graph; better possible-tag suggestions for Russian titles (lemmatization instead of crude stemming).
+- [ ] **Mastery map — next:** the mastery map page exists (levels, tips, wiki copy); next — concepts from
+  `wiki/concepts/` per topic, a level history (growth over months), the assistant answering "what do I know
+  about X" from the map; better possible-tag suggestions for Russian titles (lemmatization).
 - [ ] **Daily review — next:** copy the day's quotes to the Obsidian daily note (the Daily notes core plugin
   is off in the vault — decide the folder), a history of answers, FB2/MOBI passages.
 - [ ] **Singularity reminders from books** — plan separately how to present them (tasks, habits, notes).

@@ -135,7 +135,7 @@ STORE_GRAPH = "graph.json"
 STORE_HIGHLIGHTS = "highlights.json"
 # Поля книги из папки, которые получаются сканированием (в хранилище библиотеки не пишутся)
 FOLDER_DERIVED = {"id", "source", "format", "path", "title", "authors", "section", "collection", "library", "rel",
-                  "vault_tags", "vault_topic"}
+                  "vault_tags", "vault_topic", "vault_status"}
 
 
 def folder_library_id(path) -> str:

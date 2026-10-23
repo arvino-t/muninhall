@@ -67,9 +67,8 @@ def render_block(book: dict, highlights: list[dict], names: dict[str, str]) -> s
 
 def merge_page(existing: str | None, header: dict, block: str) -> str:
     """Новая страница или старая с заменённым блоком приложения и обновлённой шапкой."""
-    if existing is None:
-        text = "---\n---\n# " + header["title"] + "\n\n" + block + "\n"
-        return vault_mod.set_frontmatter(text, **header)
+    if existing is None:                   # шапку добавит set_frontmatter (пустую «---\n---» он не распознаёт)
+        return vault_mod.set_frontmatter("# " + header["title"] + "\n\n" + block + "\n", **header)
     start, end = existing.find(BLOCK_START), existing.find(BLOCK_END)
     if start != -1 and end != -1 and end > start:
         text = existing[:start] + block + existing[end + len(BLOCK_END):]
