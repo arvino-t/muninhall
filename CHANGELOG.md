@@ -7,6 +7,8 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
 ## [Unreleased]
 
 ### Added
+- **Focus** (UI name; was "Growth focus"): a "◎ Focus" button under Continue reading opens a popover with
+  every active focus; up to two focuses at once; focus books in Continue reading get a green border.
 - **Growth focus** — the current reading priority: a topic and its tags (books with them join the focus;
   single books can be added or removed), one active focus with an archive. The right panel shows progress
   and the next book (started first, then by relevance: matching tags and closeness to the focus books

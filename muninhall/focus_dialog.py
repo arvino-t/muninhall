@@ -1,4 +1,4 @@
-"""Окно «Фокус на развитии»: тема, теги (книги с ними попадают в фокус), порог «достаточно», архив."""
+"""Окно «Фокус»: тема, теги (книги с ними попадают в фокус), порог «достаточно», архив."""
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
@@ -24,7 +24,7 @@ def show_focus_dialog(app, preset: tuple[str, list] | None = None, fid: str | No
         active = store.data["items"].get(fid) if fid else store.active
     name0, labels0 = preset if preset else ((active["name"], active["labels"]) if active else ("", []))
     chosen = {(k, n.lower()) for k, n in labels0}
-    dlg, v = frameless_dialog(app.window, tr("Фокус на развитии"), 520)
+    dlg, v = frameless_dialog(app.window, tr("Фокус"), 520)
     body = QWidget()
     b = QVBoxLayout(body)
     b.setContentsMargins(18, 14, 18, 18)

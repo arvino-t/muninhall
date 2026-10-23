@@ -17,7 +17,7 @@ in Russian and English.
 - [The library view](#the-library-view)
 - [Reading](#reading)
 - [Highlights and notes](#highlights-and-notes)
-- [Growth focus](#growth-focus)
+- [Focus](#focus)
 - [Daily review](#daily-review)
 - [Audiobooks](#audiobooks)
 - [Continue reading and auto-resume](#continue-reading-and-auto-resume)
@@ -178,18 +178,19 @@ reader's header lists all quotes of the book in order (color, chapter, note); a 
 Highlights of your own books are stored in their library's `.library/` and travel with the folder; those
 of LitRes books are in the app data. Everything goes into backups.
 
-## Growth focus
+## Focus
 
-Your current reading priority: the topic you are developing now. Set it in the menu → "Growth focus…" or
-with "Set focus" in the right panel.
+Your current reading priority: the topic you are developing now. Set it in the menu → "Focus…" or with
+"◎ Set focus" under "Continue reading".
 
 - **A focus** is a name and tags (genres, LitRes and wiki tags, topics, series, authors): books with them
   join the focus automatically. Add or remove a single book from its menu ("Add to focus", "Remove from
-  focus"). One focus is active; previous ones stay in the archive, and any of them can become current again.
-- **The right panel** shows progress (read, reading, total) and the next book: the started one first, then
+  focus"). Up to two focuses are active (a third archives the oldest); previous ones stay in the archive,
+  and any of them can become current again.
+- **The "◎ Focus" button under "Continue reading"** opens a panel with, per focus, progress (read, reading, total) and the next book: the started one first, then
   the most relevant by matching tags and closeness to the focus books you have already read; similar books
-  outside the focus; "All focus books" leaves only them in the library. Finish a focus book and the app
-  suggests the next one.
+  outside the focus; "All focus books" leaves only them in the library. Focus books in "Continue reading" have a
+  green border. Finish a focus book and the app suggests the next one.
 - **So you don't get stuck in one topic**: once you have read "enough" (set in the focus window, 5 books
   by default, or 70% of the focus books), the app suggests consolidating it in the wiki and changing the
   focus, with candidates — large topics that do not overlap the current one.

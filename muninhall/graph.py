@@ -104,7 +104,7 @@ def build_graph(lib, scope: str = "all", wiki: dict | None = None, focus=None) -
     if wiki:
         _add_wiki(wiki, nodes, links, tags, pagelinks, ghosts, ghostlinks)
     focus_info = None
-    if focus is not None and focus.active:          # «Фокус на развитии»: его книги и теги отмечены на графе
+    if focus is not None and focus.active:          # «Фокус»: его книги и теги отмечены на графе
         from .focus import norm
         wanted = set().union(*(norm(f.get("labels") or []) for f in focus.actives))
         for n in nodes:

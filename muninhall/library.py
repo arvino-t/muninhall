@@ -82,7 +82,7 @@ class LibraryView:
         self.menu.addAction(tr("Настройки… (Ctrl+,)"), self.app.show_settings)
         self.menu.addAction(tr("Статистика чтения"), self.app.show_stats_dialog)
         self.menu.addAction(tr("Граф книг (Ctrl+G)"), self.app.show_graph)
-        self.menu.addAction(tr("Фокус на развитии…"), self.app.show_focus_dialog)
+        self.menu.addAction(tr("Фокус…"), self.app.show_focus_dialog)
         self.menu.addSeparator()
         self.menu.addAction(tr("О приложении"), self.app.on_about)
         menu_btn.clicked.connect(lambda: self.menu.popup(menu_btn.mapToGlobal(QPoint(0, menu_btn.height() + 4))))
@@ -122,15 +122,15 @@ class LibraryView:
         self.recent_panel = RecentPanel(count=2)
         self.recent_panel.activated.connect(self.app.on_book_activated)
         from .review_widget import ReviewPanel
-        # «Фокус на развитии» — кнопка справа от «Продолжить чтение», подробности во всплывающей панели
+        # «Фокус» — кнопка под «Продолжить чтение», подробности во всплывающей панели
         from .focus_widget import FocusPanel
         self.focus_panel = FocusPanel(self.app)
         self.focus_popover = Popover(self.focus_panel)
         self.focus_btn = QPushButton()
-        cls(self.focus_btn, "flat")
         self.focus_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.focus_btn.setStyleSheet("text-align: left; padding: 7px 12px;")
         self.focus_btn.clicked.connect(self._show_focus_popover)
-        self.recent_panel.head.addWidget(self.focus_btn)
+        self.recent_panel.extra.insertWidget(0, self.focus_btn)
         self.review_panel = ReviewPanel(self.app)              # «Просмотр дня»: моя цитата и отрывок из книги
         self.recent_panel.extra.addWidget(self.review_panel)
         self.review_panel.hide()
@@ -155,8 +155,8 @@ class LibraryView:
         text = (tr("Фокус: {0}", names[0]) if len(names) == 1 else tr("Фокусы: {0}", " · ".join(names))
                 if names else tr("Задать фокус"))
         fm = self.focus_btn.fontMetrics()
-        self.focus_btn.setText("◎ " + fm.elidedText(text, Qt.TextElideMode.ElideRight, 190))
-        self.focus_btn.setToolTip(tr("Фокус на развитии") + (": " + ", ".join(names) if names else ""))
+        self.focus_btn.setText("◎ " + fm.elidedText(text, Qt.TextElideMode.ElideRight, 380))
+        self.focus_btn.setToolTip(tr("Фокус") + (": " + ", ".join(names) if names else ""))
         self.update_recent_panel()
         if self.focus_popover.isVisible():
             self.focus_panel.refresh()
@@ -637,12 +637,13 @@ class LibraryView:
         if nxt:
             menu.addAction(tr('Следующая в серии: {0}', nxt.get('title')),
                            lambda: self.app.on_book_activated(nxt["id"]))
-        if self.app.focus.active:
-            if self.app.focus.contains(book):
-                menu.addAction(tr("Убрать из фокуса"), lambda: self.app.toggle_focus_book(book, False))
+        for f in self.app.focus.actives:                     # до двух фокусов — по пункту на каждый
+            if self.app.focus.contains(book, f):
+                menu.addAction(tr("Убрать из фокуса «{0}»", f["name"]),
+                               lambda _=False, fid=f["id"]: self.app.toggle_focus_book(book, False, fid))
             else:
-                menu.addAction(tr("В фокус «{0}»", self.app.focus.active["name"]),
-                               lambda: self.app.toggle_focus_book(book, True))
+                menu.addAction(tr("В фокус «{0}»", f["name"]),
+                               lambda _=False, fid=f["id"]: self.app.toggle_focus_book(book, True, fid))
         if book.get("source") in ("folder", "local") and self.app.obsidian.card_of(book)[0] is not None:
             from .tags_dialog import show_tags_dialog
             menu.addAction(tr("Теги…"), lambda: show_tags_dialog(self.app, book))     # карточка в вики

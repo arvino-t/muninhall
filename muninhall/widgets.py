@@ -699,7 +699,7 @@ class RecentPanel(QFrame):
         lay = QVBoxLayout(inner)
         lay.setContentsMargins(16, 16, 16, 16)
         lay.setSpacing(12)
-        head = QHBoxLayout()                  # заголовок и кнопка справа (например, «Фокус на развитии»)
+        head = QHBoxLayout()                  # заголовок и кнопка справа (например, «Фокус»)
         head.addWidget(label(tr("Продолжить чтение"), "title2"))
         head.addStretch()
         self.head = head

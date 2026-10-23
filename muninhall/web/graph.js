@@ -534,7 +534,7 @@ function renderAnalysis() {
         const head = el('div', 'item')
         head.append(el('span', 'name', T('«{0}»: книг {1}', data.focus.name, t.books)))
         if (t.books) head.append(bar(t))
-        box.append(section(T('Фокус на развитии'), [head, ...adjacent.map(([id, c]) =>
+        box.append(section(T('Фокус'), [head, ...adjacent.map(([id, c]) =>
             item(byId.get(id), T('смежная тема: {0} — {1} книг фокуса', byId.get(id).label, c)))],
             T('В этом графе нет книг фокуса')))
     }

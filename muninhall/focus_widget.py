@@ -1,10 +1,10 @@
-"""«Фокус на развитии»: кнопка справа от «Продолжить чтение» и её всплывающая панель — активные фокусы (до двух):
+"""«Фокус»: кнопка под «Продолжить чтение» и её всплывающая панель — активные фокусы (до двух):
 прогресс, следующая книга, похожие книги, предложение сменить фокус, когда прочитано достаточно."""
 from __future__ import annotations
 
 import html
 
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QProgressBar, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from .focus import ENOUGH_DEFAULT, MAX_ACTIVE
 from .focus_dialog import show_focus_dialog
@@ -13,7 +13,7 @@ from .widgets import cls, label
 
 
 class FocusPanel(QWidget):
-    """Содержимое всплывающей панели «Фокус на развитии»."""
+    """Содержимое всплывающей панели «Фокус»."""
 
     def __init__(self, app):
         super().__init__()
@@ -56,13 +56,14 @@ class FocusPanel(QWidget):
     def refresh(self):
         self._clear()
         store = self.app.focus
-        self.box.addWidget(label(tr("Фокус на развитии"), "title2"))
+        self.box.addWidget(label(tr("Фокус"), "title2"))
         actives = store.actives
         if not actives:
             self.box.addWidget(label(tr("Задайте тему, которую сейчас развиваете, — приложение будет подсказывать "
                                         "самые подходящие книги и вовремя предложит сменить фокус."), "caption",
                                      wrap=True))
             self._buttons(self.box, (tr("Задать фокус"), lambda: self._edit(new=True), True))
+            self._fit_labels()
             return
         for f in actives:
             self._focus_block(f)
@@ -71,6 +72,16 @@ class FocusPanel(QWidget):
         if len(actives) < MAX_ACTIVE:
             specs.append((tr("Добавить второй фокус"), lambda: self._edit(new=True), False))
         self._buttons(self.box, *specs)
+        self._fit_labels()
+
+    def _fit_labels(self):
+        """Во всплывающем окне Qt считает высоту переносимых подписей до раскладки — задаём её по ширине."""
+        for lbl in self.findChildren(QLabel):
+            if lbl.wordWrap():
+                inner = isinstance(lbl.parentWidget(), QFrame)          # подпись внутри карточки фокуса
+                width = self.width() - 8 - (24 if inner else 0)
+                lbl.setMinimumHeight(lbl.heightForWidth(width))
+        self.adjustSize()
 
     def _focus_block(self, f):
         store = self.app.focus

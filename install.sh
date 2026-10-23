@@ -104,6 +104,9 @@ if [[ ! -x "$APP_DIR/venv/bin/python" ]]; then
     "$PY" -m venv "$APP_DIR/venv"
 fi
 "$APP_DIR/venv/bin/python" -m pip install --upgrade --quiet pip
+# старая папка сборки может перекрыть свежие файлы (setuptools копирует только файлы новее уже собранных,
+# а время файлов бывает «в прошлом» — после перевода часов или git checkout)
+rm -rf "$SRC/build"
 "$APP_DIR/venv/bin/python" -m pip install --upgrade --quiet "$SRC"
 # Свежий код ставим всегда, даже если номер версии не менялся
 "$APP_DIR/venv/bin/python" -m pip install --quiet --force-reinstall --no-deps "$SRC"

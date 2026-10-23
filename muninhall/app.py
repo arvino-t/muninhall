@@ -139,7 +139,7 @@ class App(QObject, Appearance):
         # Выделения и заметки; выгрузка их, статуса чтения и тегов в хранилище Obsidian (второй мозг)
         self.highlights = HighlightStore(self.library, parent=self)
         self.obsidian = ObsidianExport(self, parent=self)
-        self.focus = FocusStore(self.library)                        # «Фокус на развитии»
+        self.focus = FocusStore(self.library)                        # «Фокус»
         self.review = DailyReview(self.library, self.highlights, focus=self.focus)     # «Просмотр дня»
         self.obsidian.on_tags_loaded = [self.on_focus_changed]       # теги вики могли изменить книги фокуса
         # Автоматические резервные копии: проверка через минуту после запуска и раз в час
@@ -472,8 +472,8 @@ class App(QObject, Appearance):
         from .focus_dialog import show_focus_dialog
         show_focus_dialog(self)
 
-    def toggle_focus_book(self, book, inside: bool):
-        self.focus.toggle_book(book, inside)
+    def toggle_focus_book(self, book, inside: bool, fid: str | None = None):
+        self.focus.toggle_book(book, inside, fid)
         self.on_focus_changed()
 
     def on_focus_changed(self, export_only=False):
