@@ -610,8 +610,8 @@ class RecentCard(QFrame):
     """Карточка в панели «Продолжить чтение» (две рядом): обложка сверху, название, глава, прогресс, кнопка."""
 
     activated = Signal(str)
-    COVER = QSize(110, 160)
-    TEXT_WIDTH = 176          # ширина текста в карточке — для обрезки с многоточием
+    COVER = QSize(84, 122)
+    TEXT_WIDTH = 184          # ширина текста в карточке — для обрезки с многоточием
 
     def __init__(self):
         super().__init__()
@@ -619,21 +619,23 @@ class RecentCard(QFrame):
         cls(self, "recentcard")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         col = QVBoxLayout(self)
-        col.setContentsMargins(12, 12, 12, 12)
-        col.setSpacing(4)
+        col.setContentsMargins(10, 10, 10, 10)
+        col.setSpacing(3)
         self.cover = Cover(size=self.COVER)
         col.addWidget(self.cover, 0, Qt.AlignmentFlag.AlignHCenter)
-        col.addSpacing(6)
-        self.title = label("", "heading", wrap=True)
+        col.addSpacing(4)
+        self.title = label("", "caption", wrap=True)
+        self.title.setStyleSheet("font-weight: 600;")
         self.author = label("", "dim", "caption")
         self.chapter = label("", "dim", "caption")
         self.bar = QProgressBar()
         self.bar.setRange(0, 100)
         self.bar.setTextVisible(False)
-        self.bar.setFixedHeight(6)
+        self.bar.setFixedHeight(4)
         self.percent = label("", "dim", "caption")
         self.button = QPushButton()
         cls(self.button, "suggested")
+        self.button.setStyleSheet("padding: 3px 10px; font-size: 12px;")   # компактная кнопка
         self.button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.button.clicked.connect(lambda: self.activated.emit(self.book_id))
         col.addWidget(self.title)
