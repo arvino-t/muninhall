@@ -6,7 +6,28 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-10-23
+
+The first step towards a "second brain": the reader works with your Obsidian vault (Karpathy's LLM Wiki
+layout) — highlights, notes, reading status and tags flow into the wiki.
+
+### Added
+- **Highlights and notes** in the reader for EPUB, FB2, MOBI and PDF: a bar above the selection with four
+  meaning colors (Important, Advice, Concept, Question — renameable), a note and copy; a click on a
+  highlight opens its menu; the "Highlights" list in the reader's header jumps to each quote. Highlights
+  are drawn with the CSS Custom Highlight API, re-found by CFI or by the quote and its context (PDF text
+  layer included), stored in the library's `.library/` (LitRes books — in the app data) and backed up.
+- **Obsidian vault** (Settings → Integrations → Obsidian): highlights go to `wiki/highlights/<Book>.md`
+  (the app rewrites only its own block, your text around it stays) with an entry in `wiki/log.md`;
+  "Read" sets `status: read` in the book's card, a started book gets `reading: true`; "Tags…" in the book
+  menu edits the card's tags with suggestions from the vault; wiki tags appear in the book graph (nested
+  tags with their parents). Uses the official Obsidian CLI when Obsidian runs, plain files otherwise.
+- **`muninhall://` links** from Obsidian open the book at a quote (Linux desktop entry, Windows installer).
+- `tools/flow_check.sh highlights` — the highlights scenario (EPUB and PDF) on the installed build.
+
 ### Fixed
+- The scenario check no longer hands over to an already running Muninhall and runs without the GPU
+  (in offscreen mode the Chromium GPU process could lose its context and hang).
 - Review of the 1.1.0 refactoring: the reader's View panel no longer starts its grid at row 1 (an empty
   row 0 after the split), and the Source-filter owner cache compares the library registry itself instead
   of its `id()`, which Python may reuse for a new list.
@@ -344,7 +365,8 @@ library. The interface stays the same — "Source" is now the name of a library.
   pitch and a sleep timer.
 - VPN bypass for LitRes (`vpn-bypass/`).
 
-[Unreleased]: https://github.com/arvino-t/muninhall/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/arvino-t/muninhall/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/arvino-t/muninhall/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/arvino-t/muninhall/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/arvino-t/muninhall/compare/v0.18.0...v1.0.0
 [0.18.0]: https://github.com/arvino-t/muninhall/compare/v0.17.0...v0.18.0

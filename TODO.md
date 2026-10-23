@@ -16,9 +16,6 @@ Reviewed: 2026-10-10 (after 1.1.0).
 Goal: see which topics I have mastered, where to look next, which tips and reminders the books give,
 and use the wiki for my own projects (incl. AI). The vault (Karpathy's LLM Wiki in `~/Documents`) is
 the knowledge base; the app talks to it through the Obsidian CLI, with a plain-file fallback.
-- [ ] **1.2 — vault connection and highlights** (in progress): 4 colors (important / advice / concept /
-  question), notes, export to `wiki/highlights/`, `muninhall://` links back, reading status and tags in
-  source cards.
 - [ ] **Graph from Obsidian:** links and nested tags of the wiki (books ↔ topics ↔ concepts ↔ entities ↔
   projects) instead of LitRes genres.
 - [ ] **Mastery map:** per topic — read / reading / not started, reading time, highlights, concepts;

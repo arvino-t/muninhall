@@ -16,6 +16,7 @@ in Russian and English.
 - [LitRes](#litres)
 - [The library view](#the-library-view)
 - [Reading](#reading)
+- [Highlights and notes](#highlights-and-notes)
 - [Audiobooks](#audiobooks)
 - [Continue reading and auto-resume](#continue-reading-and-auto-resume)
 - [Book graph](#book-graph)
@@ -23,6 +24,7 @@ in Russian and English.
 - [Settings](#settings)
 - [Backups](#backups)
 - [Singularity](#singularity)
+- [Obsidian — a second brain](#obsidian--a-second-brain)
 - [LitRes and VPN (Linux)](#litres-and-vpn-linux)
 - [Where data is stored](#where-data-is-stored)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -159,6 +161,21 @@ the log.
 - **PDF** opens right in the app; pages are shown as they are, without reflowing the text.
 - F11 — full screen, Esc — leave full screen or go back.
 
+## Highlights and notes
+
+Select text in a book (EPUB, FB2, MOBI or PDF) and a bar appears above it:
+
+- **four colors with a meaning**: yellow — "Important", green — "Advice", blue — "Concept",
+  pink — "Question" (rename them in Settings → Integrations → Obsidian);
+- **"Note"** — highlight and write down a thought, a question or how to apply it;
+- **"Copy"** — the text to the clipboard.
+
+Clicking a highlight opens its menu: another color, note, copy, delete. The "Highlights" button in the
+reader's header lists all quotes of the book in order (color, chapter, note); a click jumps to the place.
+
+Highlights of your own books are stored in their library's `.library/` and travel with the folder; those
+of LitRes books are in the app data. Everything goes into backups.
+
 ## Audiobooks
 
 Audiobooks have a headphones badge. The app downloads an M4B file or an MP3 archive and opens the
@@ -265,6 +282,24 @@ read. The app finds its own tasks by `externalId`, so there are no duplicates. P
 names in Singularity are always in Russian, so switching the interface language doesn't create
 duplicates. The token is stored only on this computer.
 
+## Obsidian — a second brain
+
+If you keep notes in Obsidian following the LLM Wiki layout (the vault has `CLAUDE.md` and a `wiki/`
+folder, book cards are `wiki/sources/*.md` with a `file:` field), Muninhall works with it directly:
+
+- **highlights** of each book go straight to `wiki/highlights/<Book>.md`: quotes by chapter, your notes,
+  meaning tags (`#important`, `#advice`, `#concept`, `#question`) and an "in the book" link that opens
+  Muninhall at that quote. The app rewrites only its own block of the page — your thoughts above or
+  below it stay;
+- **marking a book as read** sets `status: read` in its card, a started book gets `reading: true`;
+- **tags**: "Tags…" in the book menu edits the card's tags (nested with "/", suggestions from the whole
+  vault); the book graph shows them as "Wiki tags", with the parents of nested tags.
+
+Choose the vault in Settings → Integrations → Obsidian (Documents by default). If the official Obsidian
+CLI is enabled (Obsidian 1.12+: Settings → General → Command line interface) and Obsidian is running,
+properties are changed through it; otherwise the app edits the Markdown files itself. Book files are
+never changed.
+
 ## LitRes and VPN (Linux)
 
 LitRes doesn't open through a foreign VPN. The scripts in `vpn-bypass/` send LitRes traffic directly
@@ -280,7 +315,7 @@ sudo bash vpn-bypass/install.sh --remove  # remove (and restore the original kil
 
 | What | Linux | Windows |
 |---|---|---|
-| Your library's data (marks, positions, graph) | `<library folder>/.library/` | `<library folder>\.library\` |
+| Your library's data (marks, positions, highlights, graph) | `<library folder>/.library/` | `<library folder>\.library\` |
 | LitRes books, covers, LitRes data | `~/.local/share/muninhall/` | `%LOCALAPPDATA%\muninhall\` |
 | LitRes session | `~/.local/share/muninhall/webengine/` | `%LOCALAPPDATA%\muninhall\webengine\` |
 | Settings, Singularity token | `~/.config/muninhall/` | `%APPDATA%\muninhall\` |

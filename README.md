@@ -22,12 +22,17 @@ Reader), briefly *Shelfwise* in 0.16; data from the previous versions is migrate
   ways, download one book or all of them at once; can be disconnected.
 - **Reader** — page turning by tap, swipe and keys; themes, fonts and layout; contents; gestures;
   auto page turn; read aloud with sentence highlighting; PDF via pdf.js.
+- **Highlights and notes** — four meaning colors (important, advice, concept, question) and notes in
+  EPUB, FB2, MOBI and PDF; a list of quotes per book.
+- **Obsidian "second brain"** — highlights go to your vault (Karpathy's LLM Wiki layout) as
+  `wiki/highlights/<Book>.md` with `muninhall://` links back to the quote; reading status and tags are
+  kept in the book's card; works through the official Obsidian CLI or plain files.
 - **Audiobook player** — M4B chapters, speed 0.75–2× without pitch change, sleep timer, background
   playback.
 - **Continue reading** — resumes the last book on startup and picks up the position from your phone
   or the LitRes website.
 - **Book graph** — an Obsidian-style graph of books and tags (genres, folders, series, authors,
-  topics), per library or for all of them.
+  topics, wiki tags from Obsidian), per library or for all of them.
 - **Reading statistics** — minutes per day, streaks, finished books, including reading on the phone;
   for all libraries or one.
 - **Backups** — manual and scheduled backups for all libraries or one; restore from a list or a file.
@@ -111,6 +116,11 @@ Environment variables:
 | `muninhall/litres_connector.py` | the LitRes connector: sign-in, sync, downloads, remote position (`litres_folders.py` — folders dialog) |
 | `muninhall/litres.py` | LitRes session and API inside the built-in Chromium (QtWebEngine) |
 | `muninhall/reader.py` | reader page (foliate-js in QtWebEngine), `litreader://` scheme |
+| `muninhall/reader_highlights.py` | highlights in the reader: list, menu, note dialog |
+| `muninhall/highlights.py` | `HighlightStore`: highlights per book (library `.library/` or app data) |
+| `muninhall/vault.py` | Obsidian vault access: `CliVault` (Obsidian CLI) and `FileVault` (Markdown files) |
+| `muninhall/obsidian.py` | export to the vault: highlight pages, reading status, tags |
+| `muninhall/tags_dialog.py` | the book's "Tags" dialog |
 | `muninhall/player.py` | audiobook player (QtMultimedia), M4B chapter parsing |
 | `muninhall/settings.py` | settings page (tabs: General, Reading, Integrations, Backups, Advanced) |
 | `muninhall/backup.py` | backup archives (all libraries or one) and two-step restore |

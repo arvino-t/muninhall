@@ -22,6 +22,9 @@
   </developer>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.2.0" date="2026-10-23">
+      <description><p>Highlights and notes with four meaning colors, also in PDF; export to an Obsidian vault (LLM Wiki layout) with links back to the quote; reading status and tags in the wiki.</p></description>
+    </release>
     <release version="1.1.0" date="2026-10-10">
       <description><p>Internal refactoring; the reader's font size label follows the pinch gesture.</p></description>
     </release>
