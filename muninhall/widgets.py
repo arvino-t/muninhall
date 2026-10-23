@@ -699,7 +699,11 @@ class RecentPanel(QFrame):
         lay = QVBoxLayout(inner)
         lay.setContentsMargins(16, 16, 16, 16)
         lay.setSpacing(12)
-        lay.addWidget(label(tr("Продолжить чтение"), "title2"))
+        head = QHBoxLayout()                  # заголовок и кнопка справа (например, «Фокус на развитии»)
+        head.addWidget(label(tr("Продолжить чтение"), "title2"))
+        head.addStretch()
+        self.head = head
+        lay.addLayout(head)
         self.cards = []
         row = QHBoxLayout()                   # недавние книги — рядом, по горизонтали
         row.setSpacing(12)
@@ -716,11 +720,15 @@ class RecentPanel(QFrame):
         lay.addLayout(self.extra)
         lay.addStretch()
 
-    def update_books(self, books, lib):
+    def update_books(self, books, lib, in_focus=None):
+        """in_focus(книга) → True — книга в фокусе на развитии: рамка карточки зелёная."""
         for card, book in zip(self.cards, books + [None] * len(self.cards)):
             card.setVisible(book is not None)
             if book is not None:
                 card.update_book(book, lib)
+                focused = bool(in_focus and in_focus(book))
+                (cls if focused else uncls)(card, "focuscard")
+                card.setToolTip(tr("В фокусе на развитии") if focused else "")
         self.setProperty("empty", not books)
 
     def refresh_icons(self):

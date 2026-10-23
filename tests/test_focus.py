@@ -55,10 +55,12 @@ def test_related_next_topics_and_archive(clean_data, tmp_path):
     assert "переговоры" not in topics and "финансы" in topics
     assert "психология" not in topics                    # покрывает все книги фокуса — не смена темы
     second = fs.set_focus("Финансы", [("genre", "финансы")])
-    assert fs.active["id"] == second["id"]
-    assert [f["id"] for f in fs.archive()] == [first["id"]] and first["status"] == "archived"
+    assert [f["id"] for f in fs.actives] == [first["id"], second["id"]]      # два фокуса одновременно
+    assert fs.focus_of(lib.books["4"])["id"] == second["id"] and fs.contains(lib.books["1"])
+    third = fs.set_focus("Влияние", [("tag", "влияние")])                    # третий — самый давний в архив
+    assert [f["id"] for f in fs.actives] == [second["id"], third["id"]] and first["status"] == "archived"
     fs.activate(first["id"])
-    assert fs.active["id"] == first["id"] and second["status"] == "archived"
-    fs.finish()
-    assert fs.active is None and first["status"] == "done"
+    assert first["id"] in fs.data["active"] and len(fs.actives) == 2
+    fs.finish(first["id"])
+    assert first["status"] == "done" and first["id"] not in fs.data["active"]
     assert ("tag", "переговоры") in book_labels(lib, lib.books["1"])

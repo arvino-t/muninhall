@@ -186,9 +186,13 @@ class ObsidianExport(QObject):
     # --- фокус на развитии: страница в вики (её читает и планирование ассистента)
 
     def export_focus(self):
-        """wiki/plans/Фокус — <тема>.md: цель, теги, прогресс, книги со ссылками на карточки и выделения."""
+        """Страницы активных фокусов (до двух) в вики."""
         focus = getattr(self.app, "focus", None)
-        f = focus.active if focus else None
+        for f in (focus.actives if focus else []):
+            self._export_focus(focus, f)
+
+    def _export_focus(self, focus, f):
+        """wiki/plans/Фокус — <тема>.md: цель, теги, прогресс, книги со ссылками на карточки и выделения."""
         if not self.enabled or not f:
             return
         v = self.vault()
@@ -227,7 +231,9 @@ class ObsidianExport(QObject):
         for page in (v.root / "wiki" / "plans").glob(f"{safe_name(tr('Фокус — {0}', ''))}*.md"):
             prel = page.relative_to(v.root).as_posix()
             ptext = v.read_page(prel) or ""
-            if prel != rel and vault_mod.parse_frontmatter(ptext).get("status") == "active":
+            active_titles = {tr("Фокус — {0}", x["name"]) for x in focus.actives}
+            if prel != rel and vault_mod.parse_frontmatter(ptext).get("status") == "active" \
+                    and vault_mod.parse_frontmatter(ptext).get("title") not in active_titles:
                 v.write_page(prel, vault_mod.set_frontmatter(ptext, status="archived", updated=today))
         existing = v.read_page(rel)
         text = merge_page(existing, header, "\n".join(lines))

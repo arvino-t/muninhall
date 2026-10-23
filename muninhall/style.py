@@ -326,6 +326,8 @@ def stylesheet() -> str:
     #sidepanel {{ background: {c['header']}; border-left: 1px solid {c['border']}; }}
     *[cls~="recentcard"] {{ background: {c['card']}; border: 1px solid {c['border']}; border-radius: 12px; }}
     *[cls~="recentcard"]:hover {{ background: {c['flat_hover']}; }}
+    /* книга фокуса на развитии в «Продолжить чтение» */
+    *[cls~="focuscard"] {{ border: 2px solid #2ec27e; }}
     QProgressBar {{ background: {c['slider_track']}; border: none; border-radius: 3px; }}
     QProgressBar::chunk {{ background: {ACCENT}; border-radius: 3px; }}
 

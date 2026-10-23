@@ -146,7 +146,7 @@ def test_focus_page_in_wiki(tmp_path):
     assert props["type"] == "plan" and props["horizon"] == "focus" and props["status"] == "active"
     assert "[[sources/B|" in text and "прочитано 0 из 1" in text and "## Дальше (по релевантности)" in text
     assert (root / "wiki" / "log.md").read_text().count("plan | Фокус — Квантование") == 1
-    app.focus.set_focus("Другое", [("tag", "квантование")])           # новый фокус — прежняя страница в архив
+    app.focus.set_focus("Другое", [("tag", "квантование")], replace=app.focus.active["id"])   # замена фокуса
     ex.export_focus()
     assert vault.parse_frontmatter(page.read_text())["status"] == "archived"
     assert vault.parse_frontmatter((root / "wiki" / "plans" / "Фокус — Другое.md").read_text())["status"] == "active"

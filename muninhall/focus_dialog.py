@@ -14,10 +14,14 @@ def kind_names() -> dict[str, str]:
             "topic": tr("Тема"), "folder": tr("Папка ЛитРес"), "series": tr("Серия"), "author": tr("Автор")}
 
 
-def show_focus_dialog(app, preset: tuple[str, list] | None = None) -> bool:
-    """True — фокус изменён. preset — (название, [(вид, подпись)]) для нового фокуса (например, из подсказки)."""
+def show_focus_dialog(app, preset: tuple[str, list] | None = None, fid: str | None = None, new: bool = False) -> bool:
+    """True — фокусы изменены. fid — изменить этот фокус; new — новый (вторым или вместо самого давнего);
+    preset — (название, [(вид, подпись)]) для нового фокуса (например, из подсказки)."""
     store = app.focus
-    active = store.active
+    if preset or new:
+        active = None                                   # новый фокус
+    else:
+        active = store.data["items"].get(fid) if fid else store.active
     name0, labels0 = preset if preset else ((active["name"], active["labels"]) if active else ("", []))
     chosen = {(k, n.lower()) for k, n in labels0}
     dlg, v = frameless_dialog(app.window, tr("Фокус на развитии"), 520)
@@ -47,7 +51,7 @@ def show_focus_dialog(app, preset: tuple[str, list] | None = None) -> bool:
     row.addWidget(QLabel(tr("Достаточно, чтобы разобраться:")))
     enough = QSpinBox()
     enough.setRange(1, 50)
-    enough.setValue(int((active or {}).get("enough", 5)) if not preset else 5)
+    enough.setValue(int((active or {}).get("enough", 5)))
     enough.setSuffix(tr(" книг"))
     row.addWidget(enough)
     row.addStretch()
@@ -60,8 +64,7 @@ def show_focus_dialog(app, preset: tuple[str, list] | None = None) -> bool:
                 if lst.item(i).checkState() == Qt.CheckState.Checked]
 
     def update_count(*_):
-        probe = {"labels": [list(x) for x in checked()], "include": (active or {}).get("include", []) if not preset
-                 else [], "exclude": (active or {}).get("exclude", []) if not preset else []}
+        probe = {"labels": [list(x) for x in checked()], "include": (active or {}).get("include", []), "exclude": (active or {}).get("exclude", [])}
         count.setText(tr("Книг в фокусе: {0}", len(store.books(probe))))
 
     def filter_list(text):
@@ -87,9 +90,9 @@ def show_focus_dialog(app, preset: tuple[str, list] | None = None) -> bool:
             ar.addWidget(again)
             b.addLayout(ar)
     buttons = QHBoxLayout()
-    if active and not preset:
+    if active:
         finish = QPushButton(tr("Завершить фокус"))
-        finish.clicked.connect(lambda: (store.finish(True), dlg.done(2)))
+        finish.clicked.connect(lambda: (store.finish(active["id"], True), dlg.done(2)))
         buttons.addWidget(finish)
     buttons.addStretch()
     cancel = QPushButton(tr("Отмена"))
@@ -109,10 +112,10 @@ def show_focus_dialog(app, preset: tuple[str, list] | None = None) -> bool:
     if not result:
         return False
     labels = checked()
-    if not labels and not (active and not preset and active.get("include")):
+    if not labels and not (active and active.get("include")):
         app.toast(tr("Выберите хотя бы один тег — по нему книги попадут в фокус"))
         return False
     store.set_focus(name.text() or (labels[0][1] if labels else "—"), labels, enough.value(),
-                    fid=active["id"] if active and not preset else None)
+                    fid=active["id"] if active else None)
     app.on_focus_changed()
     return True

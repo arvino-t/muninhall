@@ -1,7 +1,7 @@
 """«Фокус на развитии»: текущий приоритет в чтении.
 
 Фокус — тема (название) и набор тегов: жанры, теги ЛитРес и вики, темы, серии, авторы; книги с этими тегами
-попадают в фокус сами, отдельные можно добавить или исключить вручную. Активный фокус один, прежние — в
+попадают в фокус сами, отдельные можно добавить или исключить вручную. Активных фокусов — до двух, прежние — в
 архиве. Фокус подсказывает следующую книгу (начатые, затем самые релевантные), похожие книги вне фокуса и —
 чтобы не застрять в одной теме — предлагает закрепить знания и сменить фокус, когда прочитано достаточно.
 """
@@ -14,6 +14,7 @@ from collections import Counter
 from .core import DATA_DIR, load_json, save_json
 
 FOCUS_FILE = DATA_DIR / "focus.json"
+MAX_ACTIVE = 2               # одновременно — не больше двух фокусов (чтобы это оставалось фокусом)
 ENOUGH_DEFAULT = 5            # столько прочитанных книг обычно хватает, чтобы разобраться в теме
 SHARE_ENOUGH = 0.7            # …или прочитана такая доля книг фокуса (если их хотя бы 3)
 
@@ -60,6 +61,8 @@ class FocusStore:
         self.path = path
         self.data = load_json(path, {})
         self.data.setdefault("items", {})
+        act = self.data.get("active")                 # прежний формат: один id строкой
+        self.data["active"] = [a for a in ([act] if isinstance(act, str) else act or []) if a in self.data["items"]]
 
     def save(self):
         save_json(self.path, self.data)
@@ -67,58 +70,76 @@ class FocusStore:
     # --- фокусы
 
     @property
+    def actives(self) -> list[dict]:
+        """Активные фокусы (до двух), первый — основной."""
+        return [self.data["items"][fid] for fid in self.data["active"] if fid in self.data["items"]]
+
+    @property
     def active(self) -> dict | None:
-        return self.data["items"].get(self.data.get("active"))
+        """Основной (первый) активный фокус."""
+        a = self.actives
+        return a[0] if a else None
+
+    def focus_of(self, book) -> dict | None:
+        """Активный фокус, в который входит книга."""
+        return next((f for f in self.actives if self.contains(book, f)), None)
 
     def archive(self) -> list[dict]:
-        return sorted((f for fid, f in self.data["items"].items() if fid != self.data.get("active")),
+        return sorted((f for fid, f in self.data["items"].items() if fid not in self.data["active"]),
                       key=lambda f: -(f.get("updated") or 0))
 
-    def set_focus(self, name: str, labels, enough: int = ENOUGH_DEFAULT, fid: str | None = None) -> dict:
-        """Создать фокус (или изменить fid) и сделать его активным; прежний активный — в архив."""
+    def _make_active(self, fid: str):
+        """В активные; если их стало больше двух — самый давний (кроме этого) уходит в архив."""
+        act = [a for a in self.data["active"] if a != fid] + [fid]
+        while len(act) > MAX_ACTIVE:
+            old = min((a for a in act if a != fid), key=lambda a: self.data["items"][a].get("updated") or 0)
+            act.remove(old)
+            self.data["items"][old]["status"] = "archived"
+            self.data["items"][old]["archived"] = time.time()
+        self.data["active"] = act
+        self.data["items"][fid]["status"] = "active"
+
+    def set_focus(self, name: str, labels, enough: int = ENOUGH_DEFAULT, fid: str | None = None,
+                  replace: str | None = None) -> dict:
+        """Создать фокус (или изменить fid) и сделать активным. replace — какой активный фокус он заменяет
+        (уходит в архив); без него новый фокус добавляется вторым, а при двух — заменяет самый давний."""
         now = time.time()
         item = self.data["items"].get(fid) if fid else None
         if item is None:
             item = {"id": uuid.uuid4().hex[:10], "created": now, "include": [], "exclude": []}
             self.data["items"][item["id"]] = item
         item.update(name=name.strip() or "—", labels=sorted([list(x) for x in set(map(tuple, labels))]),
-                    enough=max(1, int(enough)), updated=now, status="active")
-        prev = self.active
-        if prev and prev is not item:
-            prev["status"] = "archived"
-            prev["archived"] = now
-        self.data["active"] = item["id"]
+                    enough=max(1, int(enough)), updated=now)
+        if replace and replace != item["id"] and replace in self.data["active"]:
+            self.data["active"].remove(replace)
+            self.data["items"][replace].update(status="archived", archived=now)
+        self._make_active(item["id"])
         self.save()
         return item
 
     def activate(self, fid: str):
         if fid in self.data["items"]:
-            prev = self.active
-            if prev:
-                prev["status"] = "archived"
-                prev["archived"] = time.time()
-            self.data["active"] = fid
-            self.data["items"][fid]["status"] = "active"
+            self.data["items"][fid]["updated"] = time.time()
+            self._make_active(fid)
             self.save()
 
-    def finish(self, done: bool = True):
-        """Закончить активный фокус (в архив как пройденный или отложенный)."""
-        f = self.active
-        if f:
+    def finish(self, fid: str | None = None, done: bool = True):
+        """Закончить фокус (по умолчанию основной) — в архив как пройденный или отложенный."""
+        f = self.data["items"].get(fid) if fid else self.active
+        if f and f["id"] in self.data["active"]:
             f["status"] = "done" if done else "archived"
             f["archived"] = time.time()
-            self.data["active"] = None
+            self.data["active"].remove(f["id"])
             self.save()
 
     def delete(self, fid: str):
         self.data["items"].pop(fid, None)
-        if self.data.get("active") == fid:
-            self.data["active"] = None
+        self.data["active"] = [a for a in self.data["active"] if a != fid]
         self.save()
 
-    def toggle_book(self, book, inside: bool):
-        """Книгу — в фокус или из фокуса вручную (поверх тегов)."""
-        f = self.active
+    def toggle_book(self, book, inside: bool, fid: str | None = None):
+        """Книгу — в фокус (по умолчанию основной) или из фокуса, в который она входит, вручную."""
+        f = self.data["items"].get(fid) if fid else (self.active if inside else self.focus_of(book))
         if not f:
             return
         bid = book["id"]
@@ -137,16 +158,18 @@ class FocusStore:
         return bool(norm(book_labels(self.library, book)) & norm(f.get("labels") or []))
 
     def contains(self, book, f: dict | None = None) -> bool:
-        f = f or self.active
-        if not f:
-            return False
+        """В фокусе f (без f — в любом из активных)."""
+        if f is None:
+            return any(self.contains(book, a) for a in self.actives)
         if book["id"] in f.get("exclude", []):
             return False
         return book["id"] in f.get("include", []) or self._matches(f, book)
 
     def books(self, f: dict | None = None) -> list[dict]:
-        f = f or self.active
-        return [b for b in self.library.ordered() if self.contains(b, f)] if f else []
+        """Книги фокуса f (без f — всех активных)."""
+        if f is None and not self.actives:
+            return []
+        return [b for b in self.library.ordered() if self.contains(b, f)]
 
     def score(self, book, f: dict, finished_labels: Counter) -> float:
         """Релевантность книги фокусу: совпавшие теги фокуса и общие теги с уже прочитанными книгами фокуса."""
@@ -156,7 +179,7 @@ class FocusStore:
         return own * 3 + near + (5 if book["id"] in f.get("include", []) else 0)
 
     def progress(self, f: dict | None = None) -> dict:
-        """{"total", "finished", "reading", "unread", "next": книга или None, "enough": bool}."""
+        """{"total", "finished", "reading", "unread", "next": книга или None, "enough": bool} (без f — основной)."""
         f = f or self.active
         books = self.books(f)
         st = {"finished": [], "reading": [], "unread": []}
@@ -186,9 +209,9 @@ class FocusStore:
         books.sort(key=lambda b: (self.library.status(b) != "reading", -self.score(b, f, fin)))
         return books[:limit] if limit else books
 
-    def related(self, limit: int = 3) -> list[dict]:
+    def related(self, limit: int = 3, f: dict | None = None) -> list[dict]:
         """Похожие книги вне фокуса: больше всего общих тегов с книгами фокуса (не прочитанные)."""
-        f = self.active
+        f = f or self.active
         if not f:
             return []
         inside = self.books(f)
@@ -209,7 +232,7 @@ class FocusStore:
         used = set()
         for f in self.data["items"].values():
             used |= norm(f.get("labels") or [])
-        in_focus = {b["id"] for b in self.books()} if self.active else set()
+        in_focus = {b["id"] for b in self.books()}
         counts: Counter = Counter()
         overlap: Counter = Counter()                  # сколько книг темы уже в текущем фокусе
         all_books: Counter = Counter()

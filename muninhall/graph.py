@@ -106,15 +106,14 @@ def build_graph(lib, scope: str = "all", wiki: dict | None = None, focus=None) -
     focus_info = None
     if focus is not None and focus.active:          # «Фокус на развитии»: его книги и теги отмечены на графе
         from .focus import norm
-        f = focus.active
-        wanted = norm(f.get("labels") or [])
+        wanted = set().union(*(norm(f.get("labels") or []) for f in focus.actives))
         for n in nodes:
-            if focus.contains(lib.books[n["id"]], f):
+            if focus.contains(lib.books[n["id"]]):
                 n["focus"] = True
         for t in tags.values():
             if (t["kind"], t["label"].lower()) in wanted:
                 t["focus"] = True
-        focus_info = {"name": f["name"]}
+        focus_info = {"name": " · ".join(f["name"] for f in focus.actives)}
     return {
         "nodes": nodes + list(tags.values()),
         "links": links,

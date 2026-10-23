@@ -1,45 +1,39 @@
-"""Раздел «Фокус на развитии» в правой панели библиотеки: тема, прогресс, следующая книга, похожие книги,
-предложение сменить фокус, когда прочитано достаточно."""
+"""«Фокус на развитии»: кнопка справа от «Продолжить чтение» и её всплывающая панель — активные фокусы (до двух):
+прогресс, следующая книга, похожие книги, предложение сменить фокус, когда прочитано достаточно."""
 from __future__ import annotations
 
 import html
 
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
+from .focus import ENOUGH_DEFAULT, MAX_ACTIVE
 from .focus_dialog import show_focus_dialog
 from .i18n import tr
 from .widgets import cls, label
 
 
 class FocusPanel(QWidget):
+    """Содержимое всплывающей панели «Фокус на развитии»."""
+
     def __init__(self, app):
         super().__init__()
         self.app = app
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(0, 8, 0, 0)
-        lay.setSpacing(10)
-        lay.addWidget(label(tr("Фокус на развитии"), "title2"))
-        self.card = QFrame()
-        cls(self.card, "recentcard")
-        self.box = QVBoxLayout(self.card)
-        self.box.setContentsMargins(14, 12, 14, 12)
-        self.box.setSpacing(6)
-        lay.addWidget(self.card)
-        self._next = None
+        self.setFixedWidth(400)
+        self.box = QVBoxLayout(self)
+        self.box.setContentsMargins(4, 4, 4, 4)
+        self.box.setSpacing(8)
 
-    def _clear(self):
-        while self.box.count():
-            item = self.box.takeAt(0)
+    def _clear(self, layout=None):
+        layout = layout or self.box
+        while layout.count():
+            item = layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
             elif item.layout():
-                lay = item.layout()
-                while lay.count():
-                    w = lay.takeAt(0).widget()
-                    if w:
-                        w.deleteLater()
+                self._clear(item.layout())
 
-    def _buttons(self, *specs):
+    @staticmethod
+    def _buttons(layout, *specs):
         row = QHBoxLayout()
         row.setSpacing(6)
         for text, slot, suggested in specs:
@@ -48,65 +42,98 @@ class FocusPanel(QWidget):
                 cls(b, "suggested")
             b.clicked.connect(slot)
             row.addWidget(b)
-        self.box.addLayout(row)
+        layout.addLayout(row)
+
+    def _close_popup(self):
+        w = self.window()
+        if w is not self.app.window:                    # всплывающая панель — отдельное окно
+            w.hide()
+
+    def _edit(self, **kw):
+        self._close_popup()
+        show_focus_dialog(self.app, **kw)
 
     def refresh(self):
         self._clear()
         store = self.app.focus
-        f = store.active
-        view = self.app.library_view
-        if not f:
+        self.box.addWidget(label(tr("Фокус на развитии"), "title2"))
+        actives = store.actives
+        if not actives:
             self.box.addWidget(label(tr("Задайте тему, которую сейчас развиваете, — приложение будет подсказывать "
                                         "самые подходящие книги и вовремя предложит сменить фокус."), "caption",
                                      wrap=True))
-            self._buttons((tr("Задать фокус"), lambda: show_focus_dialog(self.app), True))
+            self._buttons(self.box, (tr("Задать фокус"), lambda: self._edit(new=True), True))
             return
+        for f in actives:
+            self._focus_block(f)
+        view = self.app.library_view
+        specs = [(tr("Все книги фокуса") if not view.focus_only else tr("Вся библиотека"), self._toggle_filter, False)]
+        if len(actives) < MAX_ACTIVE:
+            specs.append((tr("Добавить второй фокус"), lambda: self._edit(new=True), False))
+        self._buttons(self.box, *specs)
+
+    def _focus_block(self, f):
+        store = self.app.focus
+        card = QFrame()
+        cls(card, "recentcard")
+        box = QVBoxLayout(card)
+        box.setContentsMargins(12, 10, 12, 10)
+        box.setSpacing(5)
+        self.box.addWidget(card)
         p = store.progress(f)
-        self.box.addWidget(label(f["name"], "heading", wrap=True))
+        box.addWidget(label(f["name"], "heading", wrap=True))
         bar = QProgressBar()
         bar.setRange(0, max(1, p["total"]))
         bar.setValue(p["finished"])
         bar.setTextVisible(False)
         bar.setFixedHeight(5)
-        self.box.addWidget(bar)
-        self.box.addWidget(label(tr("Прочитано {0} из {1} · читаю {2} · порог «достаточно» — {3}",
-                                    p["finished"], p["total"], p["reading"], f.get("enough", 5)), "dim", "caption",
-                                 wrap=True))
-        self._next = p["next"]
+        box.addWidget(bar)
+        box.addWidget(label(tr("Прочитано {0} из {1} · читаю {2} · порог «достаточно» — {3}",
+                               p["finished"], p["total"], p["reading"], f.get("enough", 5)), "dim", "caption",
+                            wrap=True))
         if p["enough"]:
             msg = label(tr("Прочитано достаточно, чтобы разобраться в теме. Закрепите прочитанное в вики (конспект, "
                            "понятия) и смените фокус, чтобы не застрять в одной теме."), "caption", wrap=True)
             msg.setStyleSheet("font-weight: 600;")
-            self.box.addWidget(msg)
+            box.addWidget(msg)
             topics = store.next_topics(3)
             if topics:
-                self.box.addWidget(label(tr("Следующим фокусом может быть:"), "dim", "caption"))
-                for kind, name, n in topics:          # столбиком: длинные названия тем в ряд не помещаются
+                box.addWidget(label(tr("Следующим фокусом может быть:"), "dim", "caption"))
+                for kind, name, n in topics:
                     short = name if len(name) <= 38 else name[:36] + "…"
                     b = QPushButton(f"{short} · {n}")
                     cls(b, "flat")
                     b.setStyleSheet("text-align: left; padding: 3px 8px;")
                     b.setToolTip(tr("Непрочитанных книг: {0}", n))
-                    b.clicked.connect(lambda _=False, k=kind, nm=name: show_focus_dialog(
-                        self.app, preset=(nm[:1].upper() + nm[1:], [(k, nm)])))
-                    self.box.addWidget(b)
-        if self._next:
-            nb = self._next
-            what = tr("Продолжить") if self.app.library.status(nb) == "reading" else tr("Дальше")
-            self.box.addWidget(label(f"{what}: <b>{html.escape(nb.get('title', ''))}</b>", "caption", wrap=True,
-                                     rich=True))
-        related = store.related(3)
+                    b.clicked.connect(lambda _=False, k=kind, nm=name, old=f["id"]: self._replace(old, k, nm))
+                    box.addWidget(b)
+        nxt = p["next"]
+        if nxt:
+            what = tr("Продолжить") if self.app.library.status(nxt) == "reading" else tr("Дальше")
+            box.addWidget(label(f"{what}: <b>{html.escape(nxt.get('title', ''))}</b>", "caption", wrap=True,
+                                rich=True))
+        related = store.related(3, f)
         if related:
             rel = label(tr("Похожие вне фокуса: {0}", ", ".join(html.escape(b.get("title", "")[:40]) for b in related)),
                         "dim", "caption", wrap=True, rich=True)
             rel.setToolTip(tr("Можно добавить в фокус из меню книги"))
-            self.box.addWidget(rel)
-        only = view.focus_only
-        if self._next:                               # кнопки в два ряда — в одну строку не помещаются
-            self._buttons((tr("Слушать") if self._next.get("is_audio") else tr("Читать"),
-                           lambda: self.app.on_book_activated(self._next["id"]), True))
-        self._buttons((tr("Все книги фокуса") if not only else tr("Вся библиотека"), self._toggle_filter, False),
-                      (tr("Изменить"), lambda: show_focus_dialog(self.app), False))
+            box.addWidget(rel)
+        specs = []
+        if nxt:
+            specs.append((tr("Слушать") if nxt.get("is_audio") else tr("Читать"),
+                          lambda _=False, bid=nxt["id"]: self._open(bid), True))
+        specs.append((tr("Изменить"), lambda _=False, fid=f["id"]: self._edit(fid=fid), False))
+        self._buttons(box, *specs)
+
+    def _replace(self, old_fid, kind, name):
+        """Сменить фокус на предложенную тему: новый заменяет тот, по которому прочитано достаточно."""
+        self.app.focus.set_focus(name[:1].upper() + name[1:], [(kind, name)], ENOUGH_DEFAULT, replace=old_fid)
+        self.app.on_focus_changed()
+        self._edit(fid=self.app.focus.actives[-1]["id"])   # сразу уточнить теги нового фокуса
+
+    def _open(self, bid):
+        self._close_popup()
+        self.app.on_book_activated(bid)
 
     def _toggle_filter(self):
         view = self.app.library_view

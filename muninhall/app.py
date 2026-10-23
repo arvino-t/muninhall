@@ -419,11 +419,12 @@ class App(QObject, Appearance):
     def _toast_finished(self, book, text):
         """Уведомление о дочитанной книге; следующая в серии или по фокусу — кнопка «Открыть»."""
         nxt = self.library.next_in_series(book)
-        if not nxt and self.focus.contains(book):
-            p = self.focus.progress()
+        fb = self.focus.focus_of(book)
+        if not nxt and fb:
+            p = self.focus.progress(fb)
             if p["enough"]:
                 self.toast(tr("{0}. По фокусу «{1}» прочитано достаточно — пора закрепить и сменить фокус",
-                              text, self.focus.active["name"]), button=tr("Фокус"),
+                              text, fb["name"]), button=tr("Фокус"),
                            on_button=self.show_focus_dialog, timeout=12000)
                 return
             nxt = p["next"]

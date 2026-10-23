@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (QButtonGroup, QComboBox, QFrame, QHBoxLayout, QLi
 from . import libraries, style
 from .i18n import tr
 from .core import COVERS_DIR, NO_FOLDER, SORT_MODES, STATUS_FILTERS, log
-from .widgets import (BookCard, cls, FlowLayout, HeaderBar, IconButton, label, RecentPanel, Spinner)
+from .widgets import (BookCard, cls, FlowLayout, HeaderBar, IconButton, label, Popover, RecentPanel, Spinner)
 
 EBOOK_PATTERNS = "*.epub *.fb2 *.fb2.zip *.fbz *.mobi *.azw3"
 
@@ -122,9 +122,15 @@ class LibraryView:
         self.recent_panel = RecentPanel(count=2)
         self.recent_panel.activated.connect(self.app.on_book_activated)
         from .review_widget import ReviewPanel
+        # «Фокус на развитии» — кнопка справа от «Продолжить чтение», подробности во всплывающей панели
         from .focus_widget import FocusPanel
-        self.focus_panel = FocusPanel(self.app)                # «Фокус на развитии»: текущий приоритет в чтении
-        self.recent_panel.extra.addWidget(self.focus_panel)
+        self.focus_panel = FocusPanel(self.app)
+        self.focus_popover = Popover(self.focus_panel)
+        self.focus_btn = QPushButton()
+        cls(self.focus_btn, "flat")
+        self.focus_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.focus_btn.clicked.connect(self._show_focus_popover)
+        self.recent_panel.head.addWidget(self.focus_btn)
         self.review_panel = ReviewPanel(self.app)              # «Просмотр дня»: моя цитата и отрывок из книги
         self.recent_panel.extra.addWidget(self.review_panel)
         self.review_panel.hide()
@@ -137,17 +143,31 @@ class LibraryView:
 
     def update_recent_panel(self):
         books = self.app.library.recent(2, self.app.settings.get("lastBook"))
-        self.recent_panel.update_books(books, self.app.library)
-        review = not self.review_panel.isHidden() or not self.focus_panel.isHidden()
+        self.recent_panel.update_books(books, self.app.library, self.app.focus.contains)
+        review = not self.review_panel.isHidden()
         # На узком окне (портрет на планшете) панель прячем — книгам нужнее место
         self.recent_panel.setVisible((bool(books) or review) and self.app.window.width() >= 1000)
 
     def refresh_focus(self):
+        """Подпись кнопки фокуса и зелёные рамки книг фокуса в «Продолжить чтение»."""
+        actives = self.app.focus.actives
+        names = [f["name"] for f in actives]
+        text = (tr("Фокус: {0}", names[0]) if len(names) == 1 else tr("Фокусы: {0}", " · ".join(names))
+                if names else tr("Задать фокус"))
+        fm = self.focus_btn.fontMetrics()
+        self.focus_btn.setText("◎ " + fm.elidedText(text, Qt.TextElideMode.ElideRight, 190))
+        self.focus_btn.setToolTip(tr("Фокус на развитии") + (": " + ", ".join(names) if names else ""))
+        self.update_recent_panel()
+        if self.focus_popover.isVisible():
+            self.focus_panel.refresh()
+
+    def _show_focus_popover(self):
         try:
             self.focus_panel.refresh()
         except Exception as e:                       # сбой не должен ломать библиотеку
             from .core import log
             log("фокус:", e)
+        self.focus_popover.popup_under(self.focus_btn)
 
     def set_focus_only(self, on: bool):
         """Фильтр «только книги фокуса»."""
