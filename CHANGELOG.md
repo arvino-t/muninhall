@@ -6,6 +6,8 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-10-24
+
 ### Added
 - Focus page with the mastery map: the "◎ Focus" button (and menu → "Focus and mastery map") opens one
   page — the current focuses on top (instead of the popover), the mastery map below; topics already in
@@ -425,7 +427,8 @@ library. The interface stays the same — "Source" is now the name of a library.
   pitch and a sleep timer.
 - VPN bypass for LitRes (`vpn-bypass/`).
 
-[Unreleased]: https://github.com/arvino-t/muninhall/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/arvino-t/muninhall/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/arvino-t/muninhall/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/arvino-t/muninhall/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/arvino-t/muninhall/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/arvino-t/muninhall/compare/v1.0.0...v1.1.0
