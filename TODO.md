@@ -16,10 +16,9 @@ Reviewed: 2026-10-10 (after 1.1.0).
 Goal: see which topics I have mastered, where to look next, which tips and reminders the books give,
 and use the wiki for my own projects (incl. AI). The vault (Karpathy's LLM Wiki in `~/Documents`) is
 the knowledge base; the app talks to it through the Obsidian CLI, with a plain-file fallback.
-- [ ] **Graph from Obsidian:** links and nested tags of the wiki (books ↔ topics ↔ concepts ↔ entities ↔
-  projects) instead of LitRes genres.
-- [ ] **Mastery map:** per topic — read / reading / not started, reading time, highlights, concepts;
-  "where to look": topics with unread sources, question highlights, unresolved concepts, orphans.
+- [ ] **Mastery map** (the graph analysis covers topics, read / reading / not started and what's missing):
+  add reading time per topic, highlights and question highlights per topic, a dedicated page outside the
+  graph; better possible-tag suggestions for Russian titles (lemmatization instead of crude stemming).
 - [ ] **Daily review:** 3–5 quotes (advice and important) with spaced repetition, in the right panel
   under the recent books; copy to the Obsidian daily note.
 - [ ] **Singularity reminders from books** — plan separately how to present them (tasks, habits, notes).

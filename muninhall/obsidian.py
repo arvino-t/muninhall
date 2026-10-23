@@ -116,7 +116,7 @@ class ObsidianExport(QObject):
     def card_of(self, book):
         v = self.vault()
         path = self.app.library.file_path(book)
-        return (v.find_card(path) if v and path else None), v
+        return (v.find_card(path, book.get("title")) if v else None), v
 
     # --- выделения
 
@@ -247,14 +247,13 @@ class ObsidianExport(QObject):
         v = self.vault()
         if not v:
             return
-        books = [(b["id"], self.app.library.file_path(b)) for b in self.app.library.books.values()
-                 if b.get("source") in ("folder", "local")]
+        books = [(b["id"], self.app.library.file_path(b), b.get("title")) for b in self.app.library.books.values()]
         files = vault_mod.FileVault(v.root)           # читать шапки быстрее файлами, чем через CLI
 
         def work():
             out = {}
-            for bid, path in books:
-                card = files.find_card(path) if path else None
+            for bid, path, title in books:
+                card = files.find_card(path, title)
                 if card:
                     tags = files.card_props(card).get("tags") or []
                     tags = [tags] if isinstance(tags, str) else tags

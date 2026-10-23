@@ -32,7 +32,8 @@ Reader), briefly *Shelfwise* in 0.16; data from the previous versions is migrate
 - **Continue reading** — resumes the last book on startup and picks up the position from your phone
   or the LitRes website.
 - **Book graph** — an Obsidian-style graph of books and tags (genres, folders, series, authors,
-  topics, wiki tags from Obsidian), per library or for all of them.
+  topics, wiki tags and pages from Obsidian), possible tags and an analysis (mastered topics, where to
+  look next, bridges between areas), per library or for all of them.
 - **Reading statistics** — minutes per day, streaks, finished books, including reading on the phone;
   for all libraries or one.
 - **Backups** — manual and scheduled backups for all libraries or one; restore from a list or a file.
@@ -120,6 +121,7 @@ Environment variables:
 | `muninhall/highlights.py` | `HighlightStore`: highlights per book (library `.library/` or app data) |
 | `muninhall/vault.py` | Obsidian vault access: `CliVault` (Obsidian CLI) and `FileVault` (Markdown files) |
 | `muninhall/obsidian.py` | export to the vault: highlight pages, reading status, tags |
+| `muninhall/wiki_graph.py` | the wiki graph for the book graph (pages, links, cards) and possible tags |
 | `muninhall/tags_dialog.py` | the book's "Tags" dialog |
 | `muninhall/player.py` | audiobook player (QtMultimedia), M4B chapter parsing |
 | `muninhall/settings.py` | settings page (tabs: General, Reading, Integrations, Backups, Advanced) |

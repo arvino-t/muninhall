@@ -206,9 +206,19 @@ and each book–tag link is an edge. Each library has its own graph: choose the 
 (the one selected in the Source filter by default); "All libraries" shows the combined graph. Graph
 settings (tag kinds, filters) are remembered per library.
 
-- Tags: LitRes genres and tags, your LitRes folders, series, authors, topics of your own books and
-  articles. Turn tag kinds on in the panel on the left; it also has search and an All / LitRes /
-  Mine filter.
+- Tags: wiki tags and pages of your Obsidian vault (topics, concepts, entities, comparisons,
+  synthesis, projects — with the links between them), LitRes genres and tags, your LitRes folders,
+  series, authors, topics of your own books and articles. All kinds are on; turn them off in the panel
+  on the left, which also has search and an All / LitRes / Mine filter. Wiki links are taken the way
+  Obsidian sees them (through its CLI when Obsidian runs), otherwise from the wiki files.
+- **Possible tags** are dashed circles: words and word pairs shared by several books that are not tags
+  yet, and pages the wiki mentions but nobody created. A click shows a hint; a second click on a
+  possible tag adds it to those books' cards, a second click on a wiki page opens it in Obsidian. Toggle
+  them with "Possible tags" in the panel.
+- **Analysis** (at the bottom of the panel), for the current filters: topics and what is mastered (a
+  read / reading / not started bar), where to look next (started but unfinished; large topics with
+  nothing started), bridges between areas (tags that connect different groups of books) and what is
+  missing (books without tags, top possible tags). A click on an item shows the node on the graph.
 - Hovering highlights links, clicking a tag selects its books, clicking a book opens it. Wheel or
   pinch to zoom, drag to pan and to move nodes.
 - Book colour: grey — not started, accent — reading, green — read.

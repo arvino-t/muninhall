@@ -95,6 +95,9 @@ def scenario():
         name = book["format"]
         a.open_book(book, a.library.file_path(book))
         yield 9000                                  # книга открылась и встала на место
+        if name == "epub":                          # первая страница бывает обложкой-картинкой — уходим к тексту
+            a.reader.js("window.reader.goToFraction(0.06)")
+            yield 3000
         state = {}
         js(SELECT, lambda r: state.update(sel=r))
         yield 900

@@ -118,6 +118,11 @@ def set_frontmatter(text: str, **props) -> str:
     return "---\n" + "\n".join(lines) + "\n---\n" + body
 
 
+def norm_title(title: str) -> str:
+    """Название для сравнения: без регистра, знаков и лишних пробелов."""
+    return re.sub(r"[\W_]+", " ", (title or "").lower()).strip()
+
+
 def atomic_write(path: Path, text: str):
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f".{path.name}.muninhall-tmp")
@@ -148,6 +153,8 @@ class FileVault:
         self.root = Path(root)
         self.wiki = self.root / "wiki"
         self._cards: dict[str, Path] | None = None     # {путь книги от корня: карточка}
+        self._by_name: dict[str, Path] = {}             # {имя файла книги: карточка} — если имя уникально
+        self._by_title: dict[str, Path] = {}            # {нормализованное название: карточка}
         self._cards_at = 0.0
         self._tags: list[str] | None = None
 
@@ -168,25 +175,36 @@ class FileVault:
     # --- карточки книг
 
     def _scan_cards(self):
-        cards = {}
+        cards, names, titles, dup = {}, {}, {}, set()
         for card in sorted((self.wiki / "sources").glob("*.md")):
             try:
-                head = card.read_text(encoding="utf-8")[:4000]
+                props = parse_frontmatter(card.read_text(encoding="utf-8")[:4000])
             except OSError:
                 continue
-            f = parse_frontmatter(head).get("file")
+            f = props.get("file")
             if isinstance(f, str) and f:
                 cards[f] = card
+                name = Path(f).name
+                if name in names:
+                    dup.add(name)
+                names[name] = card
+            if props.get("title"):
+                titles.setdefault(norm_title(str(props["title"])), card)
         self._cards, self._cards_at = cards, time.monotonic()
+        self._by_name = {k: v for k, v in names.items() if k not in dup}
+        self._by_title = titles
 
-    def find_card(self, book_path) -> Path | None:
-        """Карточка книги по её файлу; список карточек перечитывается не чаще раза в минуту."""
-        rel = self.rel_of(book_path)
-        if not rel:
-            return None
-        if self._cards is None or (rel not in self._cards and time.monotonic() - self._cards_at > 60):
+    def find_card(self, book_path, title: str | None = None) -> Path | None:
+        """Карточка книги: по пути файла в хранилище, иначе по имени файла (книги ЛитРес лежат в данных
+        приложения, а в хранилище — их копии с теми же именами), иначе по названию."""
+        rel = self.rel_of(book_path) if book_path else None
+        if self._cards is None or (rel and rel not in self._cards and time.monotonic() - self._cards_at > 60):
             self._scan_cards()
-        return self._cards.get(rel)
+        if rel and rel in self._cards:
+            return self._cards[rel]
+        if book_path and Path(book_path).name in self._by_name:
+            return self._by_name[Path(book_path).name]
+        return self._by_title.get(norm_title(title)) if title else None
 
     def card_link(self, card: Path) -> str:
         """Вики-ссылка на карточку: [[sources/Имя]]."""

@@ -28,9 +28,12 @@ let nodes = [], links = [], byId = new Map(), adj = new Map()
 let sim = null
 const view = { x: 0, y: 0, k: 1 }   // сдвиг (в пикселях экрана) и масштаб
 let hover = null, selected = null, query = ''
-const state = { source: 'all', kinds: null, minDeg: 2, orphans: false }
+// kindsVer: при смене набора видов по умолчанию сохранённый выбор сбрасывается (2 — все включены)
+const DEFAULTS = { source: 'all', kinds: null, minDeg: 2, orphans: false, ghosts: true, kindsVer: 2 }
+const state = { ...DEFAULTS }
 
 const kindOf = id => id.slice(0, id.indexOf(':'))
+const isPage = n => n.kind.startsWith('w') && n.kind !== 'wiki'     // страница вики (тема, понятие…)
 const colorOfKind = kind => (data.kinds.find(k => k.id === kind) || {}).color || '#888'
 
 // --- размеры
@@ -67,7 +70,28 @@ function build(keepView) {
     })
     const used = new Set()
     for (const l of L) { used.add(l.source); used.add(l.target) }
-    const N = data.nodes.filter(n => n.kind === 'book'
+    // связи страниц вики между собой — если оба вида включены (страница может быть и без книг)
+    for (const l of data.pagelinks || []) {
+        if (enabled.has(kindOf(l.source)) && enabled.has(kindOf(l.target))) {
+            L.push(l); used.add(l.source); used.add(l.target)
+        }
+    }
+    // возможные теги: к показанным книгам и страницам
+    const ghostById = new Map((data.ghosts || []).map(g => [g.id, g]))
+    const GL = []
+    if (state.ghosts) {
+        const gdeg = new Map()
+        for (const l of data.ghostlinks || []) {
+            const book = bookById.get(l.source)
+            const ok = book ? sourceOk(book) && (used.has(book.id) || state.orphans) : used.has(l.source)
+            if (ok) { GL.push(l); gdeg.set(l.target, (gdeg.get(l.target) || 0) + 1) }
+        }
+        for (let i = GL.length - 1; i >= 0; i--)
+            if (ghostById.get(GL[i].target).ghost === 'tag' && gdeg.get(GL[i].target) < Math.max(2, state.minDeg))
+                GL.splice(i, 1)
+        for (const l of GL) { used.add(l.source); used.add(l.target) }
+    }
+    const N = data.nodes.concat(data.ghosts || []).filter(n => n.kind === 'book'
         ? sourceOk(n) && (used.has(n.id) || state.orphans)
         : used.has(n.id))
 
@@ -77,11 +101,12 @@ function build(keepView) {
         const node = prev ? Object.assign(prev, n) : { ...n }
         node.deg = 0
         node.fx = node.fy = null
-        if (node.kind !== 'book') node.color = colorOfKind(node.kind)
+        if (node.kind !== 'book' && !node.ghost) node.color = colorOfKind(node.kind)
         return node
     })
     byId = new Map(nodes.map(n => [n.id, n]))
-    links = L.map(l => ({ source: byId.get(l.source), target: byId.get(l.target) }))
+    links = L.concat(GL).map(l => ({ source: byId.get(l.source), target: byId.get(l.target),
+                                     ghost: ghostById.has(l.target) }))
     adj = new Map(nodes.map(n => [n.id, new Set()]))
     for (const l of links) {
         l.source.deg++; l.target.deg++
@@ -108,7 +133,9 @@ function build(keepView) {
 
     $('empty').hidden = nodes.length > 0
     const books = nodes.filter(n => n.kind === 'book').length
-    $('stats').textContent = T('{0} книг · {1} тегов', books, nodes.length - books)
+    const ghosts = nodes.filter(n => n.ghost).length
+    $('stats').textContent = T('{0} книг · {1} тегов', books, nodes.length - books - ghosts)
+    renderAnalysis()
     for (const k of data.kinds) {
         const el = document.querySelector(`.kind[data-k="${k.id}"] .n`)
         if (el) el.textContent = [...deg.entries()].filter(([id, d]) => kindOf(id) === k.id && d >= state.minDeg).length
@@ -180,18 +207,29 @@ function draw() {
         const on = focus && (l.source === focus || l.target === focus)
         ctx.globalAlpha = focus ? (on ? 0.9 : 0.06) : 0.35
         ctx.strokeStyle = on ? focus.color : th.link
+        ctx.setLineDash(l.ghost ? [3 / view.k, 3 / view.k] : [])
         ctx.beginPath()
         ctx.moveTo(l.source.x, l.source.y)
         ctx.lineTo(l.target.x, l.target.y)
         ctx.stroke()
     }
+    ctx.setLineDash([])
     for (const n of nodes) {
         const dim = !lit(n) || (q && !matches(n))
         ctx.globalAlpha = dim ? 0.15 : 1
-        ctx.fillStyle = n.color
         ctx.beginPath()
         ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2)
-        ctx.fill()
+        if (n.ghost) {                       // возможный тег или страница — пустой кружок пунктиром
+            ctx.setLineDash([2.5 / view.k, 2 / view.k])
+            ctx.lineWidth = 1.5 / view.k
+            ctx.strokeStyle = n.color
+            ctx.stroke()
+            ctx.setLineDash([])
+            ctx.lineWidth = 1 / view.k
+        } else {
+            ctx.fillStyle = n.color
+            ctx.fill()
+        }
         if (n === selected || matches(n)) {
             ctx.lineWidth = 2 / view.k
             ctx.strokeStyle = th.text
@@ -233,7 +271,7 @@ function fit() {
     for (const n of nodes) {
         x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x); y1 = Math.max(y1, n.y)
     }
-    const panel = W > 640 ? 260 : 0
+    const panel = W > 640 ? 284 : 0
     const k = Math.min(3, Math.max(0.08, Math.min((W - panel - 60) / (x1 - x0 || 1), (H - 60) / (y1 - y0 || 1))))
     view.k = k
     view.x = -((x0 + x1) / 2) * k + panel / 2
@@ -262,7 +300,10 @@ function showTip(n, x, y) {
     t.textContent = n.label
     tip.append(t)
     const sub = n.kind === 'book' ? [n.sub, n.pct ? T('прочитано {0}%', n.pct) : ''].filter(Boolean).join(' · ')
-                                  : T('{0} · книг: {1}', kind, n.deg)
+        : n.ghost === 'tag' ? T('Возможный тег · книг: {0}. Щёлкните ещё раз — добавить в карточки', n.deg)
+        : n.ghost === 'page' ? T('Упоминается в вики, страницы нет · ссылок: {0}', n.deg)
+        : isPage(n) ? T('{0} · связей: {1}. Щёлкните ещё раз — открыть в Obsidian', kind, n.deg)
+        : T('{0} · книг: {1}', kind, n.deg)
     if (sub) {
         const s = document.createElement('div')
         s.className = 's'
@@ -352,6 +393,10 @@ function endPointer(e) {
         } else {
             post({ type: 'open', id: node.id })
         }
+    } else if (selected === node && node.ghost === 'tag') {     // второй щелчок — добавить тег
+        post({ type: 'suggest', label: node.label, books: [...adj.get(node.id)].filter(id => byId.get(id)?.kind === 'book') })
+    } else if (selected === node && (isPage(node) || node.ghost === 'page') && node.page) {
+        post({ type: 'open-page', page: node.page })
     } else {
         selected = selected === node ? null : node
         draw()
@@ -373,6 +418,121 @@ canvas.addEventListener('wheel', e => {
     view.y = e.clientY - H / 2 - wy * k
     draw()
 }, { passive: false })
+
+// --- анализ графа: что освоено, куда обратить внимание, мосты между областями, чего не хватает
+
+function focusNode(id) {
+    const n = byId.get(id)
+    if (!n) return
+    selected = n
+    view.k = Math.max(view.k, 1.4)
+    view.x = -n.x * view.k
+    view.y = -n.y * view.k
+    draw()
+}
+
+// Центральность по посредничеству (Брандес): через какие узлы проходят кратчайшие пути между другими
+function betweenness(ids, nb) {
+    const bc = new Map(ids.map(id => [id, 0]))
+    for (const s of ids) {
+        const stack = [], pred = new Map(), sigma = new Map([[s, 1]]), dist = new Map([[s, 0]]), queue = [s]
+        for (let qi = 0; qi < queue.length; qi++) {      // указатель, а не shift(): shift — за линейное время
+            const v = queue[qi]
+            stack.push(v)
+            for (const w of nb.get(v)) {
+                if (!dist.has(w)) { dist.set(w, dist.get(v) + 1); queue.push(w) }
+                if (dist.get(w) === dist.get(v) + 1) {
+                    sigma.set(w, (sigma.get(w) || 0) + sigma.get(v))
+                    if (!pred.has(w)) pred.set(w, [])
+                    pred.get(w).push(v)
+                }
+            }
+        }
+        const delta = new Map()
+        while (stack.length) {
+            const w = stack.pop()
+            for (const v of pred.get(w) || [])
+                delta.set(v, (delta.get(v) || 0) + sigma.get(v) / sigma.get(w) * (1 + (delta.get(w) || 0)))
+            if (w !== s) bc.set(w, bc.get(w) + (delta.get(w) || 0))
+        }
+    }
+    return bc
+}
+
+function renderAnalysis() {
+    const box = $('analysis')
+    if (!box || !data) return
+    const real = nodes.filter(n => !n.ghost)
+    const nb = new Map(real.map(n => [n.id, []]))
+    for (const l of links)
+        if (!l.ghost && nb.has(l.source.id) && nb.has(l.target.id)) {
+            nb.get(l.source.id).push(l.target.id); nb.get(l.target.id).push(l.source.id)
+        }
+    const themes = real.filter(n => n.kind !== 'book').map(n => {
+        const books = nb.get(n.id).map(id => byId.get(id)).filter(x => x && x.kind === 'book')
+        const c = { finished: 0, reading: 0, unread: 0 }
+        for (const b of books) c[b.status || 'unread']++
+        return { n, books: books.length, ...c }
+    }).filter(t => t.books > 0).sort((a, b) => b.books - a.books)
+    const sample = real.length > 1500 ? real.filter((_, i) => i % Math.ceil(real.length / 1500) === 0) : real
+    const bc = betweenness(sample.map(n => n.id), nb)
+    // узел, к которому подходит половина книг и больше («Книги ЛитРес»), очевиден — не мост и не «внимание»
+    const nBooks = real.filter(n => n.kind === 'book').length
+    const trivial = n => nb.get(n.id).length >= Math.max(10, nBooks * 0.5)
+    const bridges = real.filter(n => n.kind !== 'book' && bc.get(n.id) > 0 && !trivial(n))
+        .sort((a, b) => bc.get(b.id) - bc.get(a.id)).slice(0, 6)
+    const allBooks = data.nodes.filter(n => n.kind === 'book' && sourceOk(n))
+    const linked = new Set(data.links.map(l => l.source))
+    const lonely = allBooks.filter(b => !linked.has(b.id)).length
+    const ghosts = nodes.filter(n => n.ghost).map(n => ({ n, d: n.deg })).sort((a, b) => b.d - a.d)
+
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e }
+    const item = (node, text, extra) => {
+        const b = el('button', 'item')
+        b.append(el('span', 'dot'), el('span', 'name', text))
+        b.firstChild.style.background = node.color
+        if (extra) b.append(extra)
+        b.onclick = () => focusNode(node.id)
+        return b
+    }
+    const bar = t => {
+        const wrap = el('span', 'bar3')
+        for (const [k, cls] of [['finished', 'f'], ['reading', 'r'], ['unread', 'u']]) {
+            const i = el('i', cls)
+            i.style.width = `${(t[k] / t.books) * 100}%`
+            wrap.append(i)
+        }
+        wrap.title = T('прочитано {0} · читаю {1} · не начато {2}', t.finished, t.reading, t.unread)
+        return wrap
+    }
+    const section = (title, items, empty) => {
+        const sec = el('div', 'asec')
+        sec.append(el('h4', null, title))
+        if (!items.length) sec.append(el('div', 'muted', empty))
+        for (const x of items) sec.append(x)
+        return sec
+    }
+    box.replaceChildren()
+    const books = real.filter(n => n.kind === 'book')
+    const done = books.filter(b => b.status === 'finished').length
+    box.append(el('div', 'muted', T('Книг: {0} · прочитано {1} · читаю {2} · тем и тегов: {3}', books.length, done,
+        books.filter(b => b.status === 'reading').length, themes.length)))
+    box.append(section(T('Темы и что освоено'), themes.slice(0, 8).map(t =>
+        item(t.n, `${t.n.label} (${t.books})`, bar(t))), T('Нет тем для выбранных фильтров')))
+    const started = themes.filter(t => t.reading > 0 && !trivial(t.n)).sort((a, b) => b.reading - a.reading).slice(0, 4)
+    const untouched = themes.filter(t => t.books >= 5 && t.finished === 0 && t.reading === 0 && !trivial(t.n)).slice(0, 4)
+    box.append(section(T('Куда обратить внимание'), [
+        ...started.map(t => item(t.n, T('{0}: начато {1}, не дочитано', t.n.label, t.reading))),
+        ...untouched.map(t => item(t.n, T('{0}: {1} книг, ни одной не начато', t.n.label, t.books))),
+    ], T('Начатых и нетронутых больших тем нет')))
+    box.append(section(T('Мосты между областями'), bridges.map(n => item(n, n.label)),
+        T('Отдельных областей нет')))
+    const gap = []
+    if (lonely) gap.push(el('div', 'muted', T('Книг без тегов и тем: {0} — их связали бы теги', lonely)))
+    gap.push(...ghosts.slice(0, 6).map(g => item(g.n, g.n.ghost === 'page'
+        ? T('страница «{0}» — упоминается, но её нет', g.n.label) : T('тег «{0}» — {1} книг', g.n.label, g.d))))
+    box.append(section(T('Чего не хватает'), gap, T('Возможных тегов нет')))
+}
 
 // --- панель
 
@@ -417,6 +577,8 @@ function setupPanel() {
     $('minDeg').onchange = () => { state.minDeg = +$('minDeg').value; build(true); saveState() }
     $('orphans').checked = state.orphans
     $('orphans').onchange = () => { state.orphans = $('orphans').checked; build(true); saveState() }
+    $('ghosts').checked = state.ghosts
+    $('ghosts').onchange = () => { state.ghosts = $('ghosts').checked; build(true); saveState() }
     $('fit').onclick = fit
     $('search').oninput = () => { query = $('search').value.trim().toLowerCase(); draw() }
     $('search').onkeydown = e => {
@@ -450,7 +612,8 @@ window.graph = {
         document.documentElement.dataset.theme = d.theme.dark ? 'dark' : 'light'
         document.documentElement.style.setProperty('--accent', d.theme.accent)
         // у каждой библиотеки своё состояние — сначала исходное, потом сохранённое
-        Object.assign(state, { source: 'all', kinds: null, minDeg: 2, orphans: false }, saved || {})
+        Object.assign(state, DEFAULTS, saved || {})
+        if ((saved || {}).kindsVer !== DEFAULTS.kindsVer) { state.kinds = null; state.kindsVer = DEFAULTS.kindsVer }
         const ids = d.kinds.map(k => k.id)
         state.kinds = (state.kinds || d.kinds.filter(k => k.on).map(k => k.id)).filter(id => ids.includes(id))
         setupPanel()

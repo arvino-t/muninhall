@@ -6,6 +6,23 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
 
 ## [Unreleased]
 
+### Added
+- **Graph from Obsidian**: the book graph includes the wiki — topics, concepts, entities, comparisons,
+  synthesis and projects with the links between them, and links from books (through their cards) to these
+  pages; links come from Obsidian's `metadataCache` via its CLI when Obsidian runs, otherwise from the
+  files (`wiki_graph.py`).
+- **Possible tags** on the graph (dashed): words and word pairs shared by several books that are not tags
+  yet, and wiki pages that are mentioned but missing; a second click adds the tag to the books' cards or
+  opens the page in Obsidian.
+- **Graph analysis** in the panel: topics and what is mastered, where to look next, bridges between areas
+  (betweenness), what is missing.
+
+### Changed
+- All tag kinds are on by default (a saved selection from older versions is reset once).
+- Book cards are also found by the file name and the title, so LitRes books (downloaded to the app data,
+  copies in the vault) get their wiki card for highlights, tags and the graph.
+
+
 ## [1.2.0] — 2026-10-23
 
 The first step towards a "second brain": the reader works with your Obsidian vault (Karpathy's LLM Wiki
