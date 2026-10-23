@@ -28,6 +28,7 @@ from .appearance import SHORTCUTS, Appearance
 from .config import Settings
 from .highlights import HighlightStore
 from .obsidian import ObsidianExport
+from .review import DailyReview
 from .library import LibraryView
 from .model import Library
 from .widgets import confirm, HeaderBar, IconButton, Toast
@@ -137,6 +138,7 @@ class App(QObject, Appearance):
         # Выделения и заметки; выгрузка их, статуса чтения и тегов в хранилище Obsidian (второй мозг)
         self.highlights = HighlightStore(self.library, parent=self)
         self.obsidian = ObsidianExport(self, parent=self)
+        self.review = DailyReview(self.library, self.highlights)     # «Просмотр дня»
         # Автоматические резервные копии: проверка через минуту после запуска и раз в час
         self._backup_timer = QTimer(self, interval=3600_000)
         self._backup_timer.timeout.connect(self.auto_backup)
@@ -214,6 +216,7 @@ class App(QObject, Appearance):
         self.library_view.refresh_library()
         QTimer.singleShot(0, self._open_last_book)
         QTimer.singleShot(2500, self.obsidian.load_tags)     # теги карточек книг из хранилища — для графа
+        QTimer.singleShot(1800, self.library_view.refresh_review)   # «Просмотр дня» — когда окно уже на экране
         QTimer.singleShot(1500, self.library_view._make_pdf_covers)
         # Пока окно открыто — тихо подтягиваем с ЛитРес прочитанное на других устройствах
         self.litres_lib.apply_remote_sync()

@@ -7,6 +7,10 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
 ## [Unreleased]
 
 ### Added
+- **Daily review** in the library's right panel: one of your highlights chosen by spaced repetition
+  ("Remember" — 3, 8, 20… days, "Later" — tomorrow; advice and important first) and a random complete
+  paragraph from an EPUB or PDF book you are reading or have read; open either in the book (it jumps to the
+  passage and flashes it) or save the passage as a highlight; history in `review.json`, backed up.
 - **Graph from Obsidian**: the book graph includes the wiki — topics, concepts, entities, comparisons,
   synthesis and projects with the links between them, and links from books (through their cards) to these
   pages; links come from Obsidian's `metadataCache` via its CLI when Obsidian runs, otherwise from the
@@ -18,6 +22,7 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
   (betweenness), what is missing.
 
 ### Changed
+- The library's right panel scrolls when its cards do not fit.
 - All tag kinds are on by default (a saved selection from older versions is reset once).
 - Book cards are also found by the file name and the title, so LitRes books (downloaded to the app data,
   copies in the vault) get their wiki card for highlights, tags and the graph.

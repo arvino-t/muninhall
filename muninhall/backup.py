@@ -33,6 +33,7 @@ FILES = {
     "progress.json": PROGRESS_FILE,
     "stats.json": STATS_FILE,
     "highlights.json": HIGHLIGHTS_FILE,
+    "review.json": DATA_DIR / "review.json",
     "singularity.json": SINGULARITY_FILE,
 }
 PREFIX = "muninhall-backup-"

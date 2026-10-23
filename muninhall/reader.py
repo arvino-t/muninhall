@@ -414,9 +414,9 @@ class ReaderPage(QWidget):
         if not self._remote_checked:
             # Книга встала на своё место — теперь можно подтянуть место с ЛитРес
             self._remote_checked = True
-            if getattr(self, "_pending_highlight", None):
-                self.highlights.go_to(self._pending_highlight)   # переход по ссылке — важнее места с ЛитРес
-                self._pending_highlight = None
+            if getattr(self, "_pending_action", None):
+                self._pending_action()                           # переход к цитате — важнее места с ЛитРес
+                self._pending_action = None
             else:
                 self.app.apply_remote_position(self.book)
 
@@ -463,10 +463,17 @@ class ReaderPage(QWidget):
 
     def go_to_highlight(self, hid):
         """Переход к выделению (ссылка muninhall:// из Obsidian): сразу, если книга уже встала на место."""
+        self._when_ready(lambda: self.highlights.go_to(hid))
+
+    def go_to_quote(self, quote: dict):
+        """Переход к отрывку по разделу и тексту («Просмотр дня»)."""
+        self._when_ready(lambda: self.js(f"window.reader?.goToQuote({json.dumps(quote, ensure_ascii=False)})"))
+
+    def _when_ready(self, action):
         if self._remote_checked:
-            self.highlights.go_to(hid)
+            action()
         else:
-            self._pending_highlight = hid
+            self._pending_action = action
 
     def _fill_toc(self, toc):
         self.toc = toc

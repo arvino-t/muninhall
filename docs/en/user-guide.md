@@ -17,6 +17,7 @@ in Russian and English.
 - [The library view](#the-library-view)
 - [Reading](#reading)
 - [Highlights and notes](#highlights-and-notes)
+- [Daily review](#daily-review)
 - [Audiobooks](#audiobooks)
 - [Continue reading and auto-resume](#continue-reading-and-auto-resume)
 - [Book graph](#book-graph)
@@ -175,6 +176,17 @@ reader's header lists all quotes of the book in order (color, chapter, note); a 
 
 Highlights of your own books are stored in their library's `.library/` and travel with the folder; those
 of LitRes books are in the app data. Everything goes into backups.
+
+## Daily review
+
+On the right of the library, under "Continue reading", there are two cards for the day:
+
+- **My quote** — one of your highlights. Spaced repetition: "Remember" brings it back in 3, 8, 20… days,
+  "Later" — tomorrow; advice and important quotes come first. "In the book" opens the book at the quote.
+- **From a book** — a random complete paragraph from an EPUB or PDF book you are reading or have read.
+  "Save quote" adds it to the book's highlights, "In the book" opens the book at that place.
+
+The choice stays for the whole day and changes the next day; the review history is backed up.
 
 ## Audiobooks
 

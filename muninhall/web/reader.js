@@ -288,22 +288,31 @@ const flash = range => {
         setTimeout(() => win.CSS.highlights.delete('mh-flash'), 1600)
     } catch (_) {}
 }
-const goToHighlight = async id => {
-    const h = highlights.find(x => x.id === id)
-    if (!h || !view) return false
-    if (!hlRanges.has(id)) {
+// Переход к цитате: q = {id?, section, cfi?, text, prefix, suffix}. С id — к выделению (с подсветкой),
+// без id — к отрывку по тексту (например, из «Просмотра дня»). В PDF текстовый слой появляется не сразу.
+const goToQuote = async q => {
+    if (!q || !view) return false
+    let x = q.id ? hlRanges.get(q.id) : null
+    if (!x) {
         try {
-            if (h.cfi) await view.goTo(h.cfi)
-            else await view.renderer.goTo({ index: h.section })
-        } catch (_) { await view.renderer.goTo({ index: h.section }) }
-        for (const { doc, index } of loadedDocs()) if (doc && index === h.section) await paintDoc(doc, index)
+            if (q.cfi) await view.goTo(q.cfi)
+            else await view.renderer.goTo({ index: q.section })
+        } catch (_) { await view.renderer.goTo({ index: q.section }) }
+        for (let attempt = 0; attempt < 10 && !x; attempt++) {
+            for (const { doc, index } of loadedDocs()) {
+                if (!doc || index !== q.section) continue
+                if (q.id) { await paintDoc(doc, index); x = hlRanges.get(q.id) }
+                else { const range = findQuote(doc, q); if (range) x = { range, doc } }
+            }
+            if (!x) await new Promise(r => setTimeout(r, 300))
+        }
     }
-    const x = hlRanges.get(id)
     if (!x) return false
-    view.renderer.scrollToAnchor?.(x.range, true)
+    view.renderer.scrollToAnchor?.(x.range)     // без второго аргумента: true ещё и выделяет текст
     flash(x.range)
     return true
 }
+const goToHighlight = id => goToQuote(highlights.find(x => x.id === id))
 
 const onKey = e => {
     const k = e.key
@@ -498,6 +507,7 @@ window.reader = {
     ttsStop: ttsClear,
     setHighlights,
     goToHighlight,
+    goToQuote,
     // диагностика: по каждому загруженному документу — какие выделения находятся и как
     // результат — в window.__hlDebug (runJavaScript не ждёт асинхронных функций)
     debugHighlights: () => { window.__hlDebug = null; debugHighlights().then(r => { window.__hlDebug = r }) },

@@ -119,6 +119,10 @@ class LibraryView:
         # Справа — «Продолжить чтение»: две последние читаемые книги
         self.recent_panel = RecentPanel(count=2)
         self.recent_panel.activated.connect(self.app.on_book_activated)
+        from .review_widget import ReviewPanel
+        self.review_panel = ReviewPanel(self.app)              # «Просмотр дня»: моя цитата и отрывок из книги
+        self.recent_panel.extra.addWidget(self.review_panel)
+        self.review_panel.hide()
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(0)
@@ -129,8 +133,20 @@ class LibraryView:
     def update_recent_panel(self):
         books = self.app.library.recent(2, self.app.settings.get("lastBook"))
         self.recent_panel.update_books(books, self.app.library)
+        review = not self.review_panel.isHidden()
         # На узком окне (портрет на планшете) панель прячем — книгам нужнее место
-        self.recent_panel.setVisible(bool(books) and self.app.window.width() >= 900)
+        self.recent_panel.setVisible((bool(books) or review) and self.app.window.width() >= 900)
+
+    def refresh_review(self):
+        """«Просмотр дня»: выбрать цитату и отрывок (раз в день) и показать."""
+        try:
+            has = self.review_panel.refresh()
+        except Exception as e:                       # сбой не должен ломать библиотеку
+            from .core import log
+            log("просмотр дня:", e)
+            has = False
+        self.review_panel.setVisible(has)
+        self.update_recent_panel()
 
     def _build_empty_page(self):
         w = QWidget()

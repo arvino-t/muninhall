@@ -19,8 +19,8 @@ the knowledge base; the app talks to it through the Obsidian CLI, with a plain-f
 - [ ] **Mastery map** (the graph analysis covers topics, read / reading / not started and what's missing):
   add reading time per topic, highlights and question highlights per topic, a dedicated page outside the
   graph; better possible-tag suggestions for Russian titles (lemmatization instead of crude stemming).
-- [ ] **Daily review:** 3–5 quotes (advice and important) with spaced repetition, in the right panel
-  under the recent books; copy to the Obsidian daily note.
+- [ ] **Daily review — next:** copy the day's quotes to the Obsidian daily note (the Daily notes core plugin
+  is off in the vault — decide the folder), a history of answers, FB2/MOBI passages.
 - [ ] **Singularity reminders from books** — plan separately how to present them (tasks, habits, notes).
 - [ ] **Projects:** `wiki/projects/` pages; the app shows books, quotes and concepts for a project.
 

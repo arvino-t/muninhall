@@ -8,7 +8,7 @@ from PySide6.QtCore import (Property, QEasingCurve, QPoint, QPropertyAnimation, 
                             Qt, Signal)
 from PySide6.QtGui import QColor, QGuiApplication, QImageReader, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (QAbstractButton, QComboBox, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel,
-                               QLayout, QProgressBar, QPushButton, QSizePolicy, QSlider, QStyle,
+                               QLayout, QProgressBar, QPushButton, QScrollArea, QSizePolicy, QSlider, QStyle,
                                QStyleOptionSlider,
                                QToolButton, QVBoxLayout, QWidget)
 
@@ -681,7 +681,18 @@ class RecentPanel(QFrame):
         super().__init__()
         self.setObjectName("sidepanel")
         self.setFixedWidth(340)
-        lay = QVBoxLayout(self)
+        # содержимое прокручивается: книги и «Просмотр дня» вместе не всегда помещаются по высоте
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; }")
+        inner = QWidget()
+        scroll.setWidget(inner)
+        outer.addWidget(scroll)
+        lay = QVBoxLayout(inner)
         lay.setContentsMargins(16, 16, 16, 16)
         lay.setSpacing(12)
         lay.addWidget(label(tr("Продолжить чтение"), "title2"))
@@ -691,6 +702,8 @@ class RecentPanel(QFrame):
             card.activated.connect(self.activated)
             lay.addWidget(card)
             self.cards.append(card)
+        self.extra = QVBoxLayout()            # другие разделы под книгами (например, «Просмотр дня»)
+        lay.addLayout(self.extra)
         lay.addStretch()
 
     def update_books(self, books, lib):
