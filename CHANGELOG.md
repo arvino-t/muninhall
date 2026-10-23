@@ -22,7 +22,8 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
   (betweenness), what is missing.
 
 ### Changed
-- The library's right panel scrolls when its cards do not fit.
+- The library's right panel is wider and shows the two recent books side by side (vertical cards);
+  it scrolls when its cards do not fit.
 - All tag kinds are on by default (a saved selection from older versions is reset once).
 - Book cards are also found by the file name and the title, so LitRes books (downloaded to the app data,
   copies in the vault) get their wiki card for highlights, tags and the graph.

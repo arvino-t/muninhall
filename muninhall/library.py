@@ -135,7 +135,7 @@ class LibraryView:
         self.recent_panel.update_books(books, self.app.library)
         review = not self.review_panel.isHidden()
         # На узком окне (портрет на планшете) панель прячем — книгам нужнее место
-        self.recent_panel.setVisible((bool(books) or review) and self.app.window.width() >= 900)
+        self.recent_panel.setVisible((bool(books) or review) and self.app.window.width() >= 1000)
 
     def refresh_review(self):
         """«Просмотр дня»: выбрать цитату и отрывок (раз в день) и показать."""

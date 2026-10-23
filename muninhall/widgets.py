@@ -607,26 +607,26 @@ class SeekSlider(QSlider):
 
 
 class RecentCard(QFrame):
-    """Карточка в панели «Продолжить чтение»: обложка, название, глава, прогресс, кнопка."""
+    """Карточка в панели «Продолжить чтение» (две рядом): обложка сверху, название, глава, прогресс, кнопка."""
 
     activated = Signal(str)
-    COVER = QSize(96, 140)
+    COVER = QSize(110, 160)
+    TEXT_WIDTH = 176          # ширина текста в карточке — для обрезки с многоточием
 
     def __init__(self):
         super().__init__()
         self.book_id = None
         cls(self, "recentcard")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        lay = QHBoxLayout(self)
-        lay.setContentsMargins(12, 12, 12, 12)
-        lay.setSpacing(14)
-        self.cover = Cover(size=self.COVER)
-        lay.addWidget(self.cover, 0, Qt.AlignmentFlag.AlignTop)
-        col = QVBoxLayout()
+        col = QVBoxLayout(self)
+        col.setContentsMargins(12, 12, 12, 12)
         col.setSpacing(4)
+        self.cover = Cover(size=self.COVER)
+        col.addWidget(self.cover, 0, Qt.AlignmentFlag.AlignHCenter)
+        col.addSpacing(6)
         self.title = label("", "heading", wrap=True)
         self.author = label("", "dim", "caption")
-        self.chapter = label("", "caption", wrap=True)
+        self.chapter = label("", "dim", "caption")
         self.bar = QProgressBar()
         self.bar.setRange(0, 100)
         self.bar.setTextVisible(False)
@@ -642,24 +642,26 @@ class RecentCard(QFrame):
         col.addStretch()
         col.addWidget(self.bar)
         col.addWidget(self.percent)
-        col.addWidget(self.button, 0, Qt.AlignmentFlag.AlignLeft)
-        lay.addLayout(col, 1)
+        col.addWidget(self.button)
 
     def update_book(self, book, lib):
         self.book_id = book["id"]
         title = book.get("title") or ""
         fm = self.title.fontMetrics()
-        self.title.setText(fm.elidedText(title, Qt.TextElideMode.ElideRight, 3 * 150))
+        self.title.setText(fm.elidedText(title, Qt.TextElideMode.ElideRight, 2 * self.TEXT_WIDTH - 20))
         self.title.setToolTip(title)
         authors = ", ".join(book.get("authors") or [])
-        self.author.setText(self.author.fontMetrics().elidedText(authors, Qt.TextElideMode.ElideRight, 170))
+        self.author.setText(self.author.fontMetrics().elidedText(authors, Qt.TextElideMode.ElideRight,
+                                                                 self.TEXT_WIDTH))
         self.author.setVisible(bool(authors))
         local = lib.progress.get(book["id"], {})
         chapter = local.get("chapter") or ""
         # читали позже на ЛитРес (телефон, сайт) — показываем главу оттуда
         if book.get("remote_chapter") and (book.get("remote_read_at") or 0) > (local.get("ts") or 0):
             chapter = book["remote_chapter"]
-        self.chapter.setText(chapter)
+        self.chapter.setText(self.chapter.fontMetrics().elidedText(chapter, Qt.TextElideMode.ElideRight,
+                                                                   self.TEXT_WIDTH))
+        self.chapter.setToolTip(chapter)
         self.chapter.setVisible(bool(chapter))
         pct = lib.percent(book) or 0
         self.bar.setValue(pct)
@@ -680,7 +682,7 @@ class RecentPanel(QFrame):
     def __init__(self, count=2):
         super().__init__()
         self.setObjectName("sidepanel")
-        self.setFixedWidth(340)
+        self.setFixedWidth(460)
         # содержимое прокручивается: книги и «Просмотр дня» вместе не всегда помещаются по высоте
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -697,11 +699,17 @@ class RecentPanel(QFrame):
         lay.setSpacing(12)
         lay.addWidget(label(tr("Продолжить чтение"), "title2"))
         self.cards = []
+        row = QHBoxLayout()                   # недавние книги — рядом, по горизонтали
+        row.setSpacing(12)
         for _ in range(count):
             card = RecentCard()
             card.activated.connect(self.activated)
-            lay.addWidget(card)
+            sp = card.sizePolicy()
+            sp.setRetainSizeWhenHidden(True)  # одна книга — карточка остаётся половинной ширины
+            card.setSizePolicy(sp)
+            row.addWidget(card, 1)
             self.cards.append(card)
+        lay.addLayout(row)
         self.extra = QVBoxLayout()            # другие разделы под книгами (например, «Просмотр дня»)
         lay.addLayout(self.extra)
         lay.addStretch()
