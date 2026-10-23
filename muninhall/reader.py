@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (QButtonGroup, QComboBox, QFrame, QGridLayout, QHB
 from . import core, style
 from .core import LOCAL_SUFFIX, SAFE_LINK_SCHEMES, SCHEME, WEB_DIR, books_dir, log
 from .litres import PREFIX
+from .reader_highlights import ReaderHighlights
 from .widgets import HeaderBar, IconButton, Popover, SeekSlider, Switch, attach_popover, cls, label
 from .i18n import tr, web_strings
 
@@ -137,6 +138,9 @@ class ReaderPage(QWidget):
         "escape": "_msg_escape",
         "external-link": "_msg_external_link",
         "error": "_msg_error",
+        "highlight-add": "_msg_highlight_add",
+        "highlight-menu": "_msg_highlight_menu",
+        "copy": "_msg_copy",
     }
 
     def __init__(self, app, book, path: Path):
@@ -195,6 +199,8 @@ class ReaderPage(QWidget):
         self.toc_popover = Popover(self.toc_list)
         attach_popover(self.toc_btn, self.toc_popover)
         self.header.pack_end(self.toc_btn)
+        self.highlights = ReaderHighlights(self)      # выделения и заметки: список, меню, окно заметки
+        self.header.pack_end(self.highlights.button)
         self.flip_btn = IconButton("media-playlist-repeat", tr("Автолистание"))
         self.flip_btn.setCheckable(True)
         self.flip_btn.toggled.connect(self._toggle_autoflip)
@@ -380,6 +386,7 @@ class ReaderPage(QWidget):
     def _msg_opened(self, msg):
         self.set_ui_visible(self.ui_visible)
         self._fill_toc(msg.get("toc") or [])
+        self.highlights.push()
         self.app.library_view.on_book_metadata(self.book["id"], msg.get("title"), msg.get("author"))
 
     def _msg_relocate(self, msg):
@@ -393,6 +400,9 @@ class ReaderPage(QWidget):
         if msg.get("cfi") or self.book.get("format", "").endswith("pdf"):
             self.app.library.set_progress(self.book["id"], msg.get("cfi"), frac, msg.get("chapter"))
             self.app.note_activity()
+            if frac > 0.01 and not getattr(self, "_reading_noted", False):
+                self._reading_noted = True              # карточка книги в вики: reading: true
+                self.app.obsidian.on_reading(self.book)
         if msg.get("atEnd") and not self.book.get("finished"):
             self.app.set_finished(self.book, True, auto=True)
         if self._flip_timer.isActive():
@@ -404,7 +414,11 @@ class ReaderPage(QWidget):
         if not self._remote_checked:
             # Книга встала на своё место — теперь можно подтянуть место с ЛитРес
             self._remote_checked = True
-            self.app.apply_remote_position(self.book)
+            if getattr(self, "_pending_highlight", None):
+                self.highlights.go_to(self._pending_highlight)   # переход по ссылке — важнее места с ЛитРес
+                self._pending_highlight = None
+            else:
+                self.app.apply_remote_position(self.book)
 
     def _msg_toggle_ui(self, msg):
         self.set_ui_visible(not self.ui_visible)
@@ -437,6 +451,22 @@ class ReaderPage(QWidget):
 
     def _msg_error(self, msg):
         self.app.toast(tr('Не удалось открыть книгу: {0}', msg.get('message')))
+
+    def _msg_highlight_add(self, msg):
+        self.highlights.on_add(msg)
+
+    def _msg_highlight_menu(self, msg):
+        self.highlights.on_menu(msg)
+
+    def _msg_copy(self, msg):
+        self.highlights.copy(msg)
+
+    def go_to_highlight(self, hid):
+        """Переход к выделению (ссылка muninhall:// из Obsidian): сразу, если книга уже встала на место."""
+        if self._remote_checked:
+            self.highlights.go_to(hid)
+        else:
+            self._pending_highlight = hid
 
     def _fill_toc(self, toc):
         self.toc = toc

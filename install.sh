@@ -147,12 +147,12 @@ GenericName=Своя библиотека книг
 GenericName[en]=Personal library
 Comment=Своя библиотека книг и статей: читать, организовывать, обслуживать; ЛитРес — подключаемая библиотека
 Comment[en]=Build, read and organize your own library of books and articles; LitRes as a pluggable library
-Exec=$BIN %F
+Exec=$BIN %U
 Icon=$APP_ID
 Terminal=false
 Categories=Office;Viewer;GTK;Qt;
 Keywords=книги;библиотека;статьи;литрес;litres;epub;fb2;pdf;аудиокниги;читалка;library;books;
-MimeType=application/epub+zip;application/x-fictionbook+xml;application/x-zip-compressed-fb2;application/x-mobipocket-ebook;
+MimeType=application/epub+zip;application/x-fictionbook+xml;application/x-zip-compressed-fb2;application/x-mobipocket-ebook;x-scheme-handler/muninhall;
 StartupWMClass=muninhall
 EOF
 refresh_caches

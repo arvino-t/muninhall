@@ -33,6 +33,6 @@ def qt_app():
 def clean_data():
     """Пустые данные приложения для каждого теста."""
     from muninhall import core
-    for f in (core.LIBRARY_FILE, core.PROGRESS_FILE, core.STATS_FILE, core.CONFIG_FILE):
+    for f in (core.LIBRARY_FILE, core.PROGRESS_FILE, core.STATS_FILE, core.CONFIG_FILE, core.HIGHLIGHTS_FILE):
         f.unlink(missing_ok=True)
     yield core

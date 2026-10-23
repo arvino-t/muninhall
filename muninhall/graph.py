@@ -18,6 +18,7 @@ from .i18n import tr, web_strings
 
 # (вид тега, название, цвет, включён по умолчанию)
 KINDS = (
+    ("wiki", tr("Теги вики"), "#26a269", True),
     ("genre", tr("Жанры"), "#3584e4", True),
     ("folder", tr("Мои папки на ЛитРес"), "#e5a50a", True),
     ("topic", tr("Темы своих книг и статей"), "#c061cb", True),
@@ -71,6 +72,11 @@ def build_graph(lib, scope: str = "all") -> dict:
             tag("genre", g, bid)
         for t in book.get("tags") or []:
             tag("tag", t, bid)
+        # теги карточки книги в Obsidian; вложенный «ml/сжатие» — ещё и родитель «ml»
+        for t in book.get("vault_tags") or []:
+            parts = t.split("/")
+            for i in range(1, len(parts) + 1):
+                tag("wiki", "/".join(parts[:i]), bid)
         for fid in book.get("folders") or []:
             tag("folder", lib.folders.get(fid), bid)
         if book.get("series"):

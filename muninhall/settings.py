@@ -64,13 +64,16 @@ SERVICES = {
     "litres": {"theme": (), "favicon": SITE + "/favicon.ico", "fallback": "accessories-dictionary"},
     "singularity": {"theme": ("singularityapp", "singularity"), "favicon": "https://singularity-app.com/favicon.ico",
                     "fallback": "object-select"},
+    "obsidian": {"theme": ("md.obsidian.Obsidian", "obsidian"), "favicon": "https://obsidian.md/favicon.ico",
+                 "fallback": "format-text-highlight"},
 }
 ICONS_DIR = CACHE_DIR / "service-icons"
 ICON_SIZE = 32
 # Настройки, которые «Сбросить» не трогает: где лежат книги, что открыто, состояние графа
 KEEP_ON_RESET = {"booksDir", "libraries", "appIcon", "shortcuts", "lastBook", "graph", "settingsTab",
                  "libraryStatus", "libraryFolder", "librarySubdir", "libraryType", "librarySort",
-                 "backupDir", "backupAuto", "backupKeep", "backupLast", "backupToken", "language"}
+                 "backupDir", "backupAuto", "backupKeep", "backupLast", "backupToken", "language",
+                 "obsidianVault", "highlightColors"}
 
 class ServiceIcons(QObject):
     """Значки сторонних сервисов: из темы системы, из кэша или скачанный favicon сайта."""
@@ -441,7 +444,81 @@ class SettingsPage(QWidget):
         g = self.group(tr("Сервисы"), tr("Сторонние сервисы, с которыми работает приложение."))
         self.button(g, "Singularity", tr("Настроить…"), app.show_singularity_dialog,
                     tr("Задачи «Читаю», прогресс в заметках, привычка ежедневного чтения"), service="singularity")
+        self._build_obsidian()
         self.col.addStretch()
+
+    def _build_obsidian(self):
+        """Хранилище Obsidian — второй мозг: выделения, статус чтения и теги книг."""
+        app = self.app
+        g = self.group("Obsidian", tr("Хранилище-вики (схема LLM Wiki): цитаты и заметки из книг, отметки «читаю» и "
+                                      "«прочитано», теги книг. Карточки книг ищутся по полю file:, источники не "
+                                      "меняются."))
+        choose = QPushButton(tr("Выбрать…"))
+        choose.clicked.connect(self._choose_vault)
+        self.vault_row = self.row(g, tr("Хранилище"), choose, "", service="obsidian")
+        self.switch(g, tr("Выгружать в хранилище"), "obsidianExport",
+                    tr("Страницы wiki/highlights/<Книга>.md, свойства status/reading/tags в карточке книги"))
+        export = QPushButton(tr("Выгрузить сейчас"))
+        export.clicked.connect(self._export_all)
+        self.row(g, tr("Выделения всех книг"), export, tr("Обновить страницы выделений для всех книг"))
+        names = QWidget()
+        nh = QHBoxLayout(names)
+        nh.setContentsMargins(0, 0, 0, 0)
+        from .highlights import COLORS, color_names
+        from .reader_highlights import color_icon
+        custom = app.settings.get("highlightColors") or {}
+        for c in COLORS:
+            ic = QLabel()
+            ic.setPixmap(color_icon(c, 12).pixmap(12, 12))
+            edit = QLineEdit(custom.get(c, ""))
+            edit.setPlaceholderText(color_names()[c])
+            edit.setMaximumWidth(110)
+            edit.editingFinished.connect(lambda c=c, e=edit: self._set_color_name(c, e.text()))
+            nh.addWidget(ic)
+            nh.addWidget(edit)
+        self.row(g, tr("Смысл цветов"), names, tr("Метки цитат в вики (#важное, #совет…); пусто — по умолчанию"))
+        self._sync_vault_row()
+
+    def _sync_vault_row(self):
+        from . import vault
+        state, path = vault.status(self.app.settings)
+        text = {
+            "none": tr("Не найдено: выберите папку хранилища (в ней wiki/ и CLAUDE.md)"),
+            "invalid": tr("{0} — не похоже на вики: нет wiki/ или CLAUDE.md", path),
+            "files": tr("{0} · Obsidian CLI не найден — работа с файлами напрямую", path),
+            "cli": tr("{0} · Obsidian CLI подключён", path),
+            "cli-closed": tr("{0} · Obsidian закрыт — пока работа с файлами, CLI подключится при запуске", path),
+        }[state]
+        hint = self.vault_row.findChild(QLabel, "row-hint")
+        if hint:
+            hint.setText(text)
+            hint.setVisible(True)
+
+    def _choose_vault(self):
+        from . import vault
+        start = self.app.settings.get("obsidianVault") or str(vault.default_vault() or Path.home())
+        path = QFileDialog.getExistingDirectory(self.app.window, tr("Папка хранилища Obsidian"), start)
+        if not path:
+            return
+        self.app.settings["obsidianVault"] = path
+        self.app.obsidian.vault(fresh=True)
+        self.app.obsidian.load_tags()
+        self._sync_vault_row()
+
+    def _export_all(self):
+        if not self.app.obsidian.vault(fresh=True):
+            self.app.toast(tr("Хранилище Obsidian не найдено"))
+            return
+        n = self.app.obsidian.export_all()
+        self.app.toast(tr("Страниц выделений обновлено: {0}", n))
+
+    def _set_color_name(self, color, text):
+        names = dict(self.app.settings.get("highlightColors") or {})
+        if text.strip():
+            names[color] = text.strip()
+        else:
+            names.pop(color, None)
+        self.app.settings["highlightColors"] = names or None
 
     def _build_backup(self):
         """Вкладка «Резервные копии»."""

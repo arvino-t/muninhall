@@ -102,6 +102,11 @@ New-Item -Force -Path "$Classes\$ProgId\shell\open\command" | Out-Null
 Set-ItemProperty -Path "$Classes\$ProgId" -Name '(default)' -Value 'Электронная книга'
 Set-ItemProperty -Path "$Classes\$ProgId\DefaultIcon" -Name '(default)' -Value "$Icon,0"
 Set-ItemProperty -Path "$Classes\$ProgId\shell\open\command" -Name '(default)' -Value "`"$Exe`" `"%1`""
+# Ссылки muninhall://open?book=…&hl=… из Obsidian — место в книге
+New-Item -Force -Path "$Classes\muninhall\shell\open\command" | Out-Null
+Set-ItemProperty -Path "$Classes\muninhall" -Name '(default)' -Value 'URL:Muninhall'
+New-ItemProperty -Force -Path "$Classes\muninhall" -Name 'URL Protocol' -Value '' -PropertyType String | Out-Null
+Set-ItemProperty -Path "$Classes\muninhall\shell\open\command" -Name '(default)' -Value "`"$Exe`" `"%1`""
 foreach ($ext in @('.epub', '.fb2', '.fbz', '.mobi', '.azw3')) {
     # Добавляем себя в «Открыть с помощью», не отбирая у других программ открытие по умолчанию
     New-Item -Force -Path "$Classes\$ext\OpenWithProgids" | Out-Null

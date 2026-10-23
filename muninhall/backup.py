@@ -22,8 +22,8 @@ from pathlib import Path
 from PySide6.QtCore import QStandardPaths
 
 from . import __version__
-from .core import (CONFIG_DIR, CONFIG_FILE, DATA_DIR, LIBRARY_FILE, PROGRESS_FILE, STATS_FILE, STORE_BOOKS,
-                   STORE_GRAPH, STORE_PROGRESS, load_json, save_json)
+from .core import (CONFIG_DIR, CONFIG_FILE, DATA_DIR, HIGHLIGHTS_FILE, LIBRARY_FILE, PROGRESS_FILE, STATS_FILE,
+                   STORE_BOOKS, STORE_GRAPH, STORE_HIGHLIGHTS, STORE_PROGRESS, load_json, save_json)
 from .i18n import tr
 
 SINGULARITY_FILE = CONFIG_DIR / "singularity.json"
@@ -32,6 +32,7 @@ FILES = {
     "library.json": LIBRARY_FILE,
     "progress.json": PROGRESS_FILE,
     "stats.json": STATS_FILE,
+    "highlights.json": HIGHLIGHTS_FILE,
     "singularity.json": SINGULARITY_FILE,
 }
 PREFIX = "muninhall-backup-"
@@ -43,7 +44,7 @@ MAX_FILE = 50 * 1024 * 1024
 INTERVALS = {"daily": timedelta(days=1), "weekly": timedelta(days=7)}
 # Настройки, которые не берутся из копии: они про этот компьютер и про сами копии
 # Данные своих библиотек (их хранилища `.library/`) — в архиве как libraries/<id>/<файл>
-STORE_FILES = (STORE_BOOKS, STORE_PROGRESS, STORE_GRAPH)
+STORE_FILES = (STORE_BOOKS, STORE_PROGRESS, STORE_GRAPH, STORE_HIGHLIGHTS)
 STORE_ENTRY = re.compile(r"^libraries/(folder-[0-9a-f]{10})/(%s)$" % "|".join(map(re.escape, STORE_FILES)))
 LOCAL_SETTINGS = ("booksDir", "libraries", "localFolders", "backupDir", "backupLast")
 
@@ -95,7 +96,7 @@ def scope_of(path: Path) -> str:
 
 
 # Что входит в копию ЛитРес: её книги и место чтения (свои книги лежат в .library своих библиотек)
-LITRES_FILES = ("library.json", "progress.json")
+LITRES_FILES = ("library.json", "progress.json", "highlights.json")
 
 
 def create(settings, reason: str = "", scope: str = "all") -> Path:

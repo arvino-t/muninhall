@@ -17,6 +17,7 @@ foreach ($lnk in @(
 
 $Classes = 'HKCU:\Software\Classes'
 Remove-Item -Recurse -Force "$Classes\$ProgId"
+Remove-Item -Recurse -Force "$Classes\muninhall"
 foreach ($ext in @('.epub', '.fb2', '.fbz', '.mobi', '.azw3')) {
     Remove-ItemProperty -Path "$Classes\$ext\OpenWithProgids" -Name $ProgId
 }

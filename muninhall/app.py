@@ -26,6 +26,8 @@ from .litres_connector import LitresConnector
 from .singularity import SingularitySync
 from .appearance import SHORTCUTS, Appearance
 from .config import Settings
+from .highlights import HighlightStore
+from .obsidian import ObsidianExport
 from .library import LibraryView
 from .model import Library
 from .widgets import confirm, HeaderBar, IconButton, Toast
@@ -132,6 +134,9 @@ class App(QObject, Appearance):
             set_books_dir(None)
         self.library = Library()
         self.library.chars_per_min = int(self.settings.get("readingCharsPerMin") or 1300)
+        # Выделения и заметки; выгрузка их, статуса чтения и тегов в хранилище Obsidian (второй мозг)
+        self.highlights = HighlightStore(self.library, parent=self)
+        self.obsidian = ObsidianExport(self, parent=self)
         # Автоматические резервные копии: проверка через минуту после запуска и раз в час
         self._backup_timer = QTimer(self, interval=3600_000)
         self._backup_timer.timeout.connect(self.auto_backup)
@@ -208,6 +213,7 @@ class App(QObject, Appearance):
         folder_scan.scan_folders(self.library, self.local_folders())
         self.library_view.refresh_library()
         QTimer.singleShot(0, self._open_last_book)
+        QTimer.singleShot(2500, self.obsidian.load_tags)     # теги карточек книг из хранилища — для графа
         QTimer.singleShot(1500, self.library_view._make_pdf_covers)
         # Пока окно открыто — тихо подтягиваем с ЛитРес прочитанное на других устройствах
         self.litres_lib.apply_remote_sync()
@@ -388,6 +394,7 @@ class App(QObject, Appearance):
         self.library_view.refresh_card(book["id"])
         if finished:
             self.library.reading.mark_finished(book["id"])
+        self.obsidian.on_finished(book, finished)
         if auto:
             self._toast_finished(book, tr("Книга дочитана — отмечена прочитанной"))
         if book.get("source") != "litres" or not self.litres.logged_in:
@@ -437,6 +444,20 @@ class App(QObject, Appearance):
         self.pop_to_library()
         self.reader = ReaderPage(self, book, path)
         self.push(self.reader)
+
+    def open_link(self, url: str):
+        """Ссылка muninhall://open?book=<id>&hl=<id выделения> (из Obsidian): книга на этом месте."""
+        from urllib.parse import parse_qs, urlparse
+        u = urlparse(url)
+        q = {k: v[0] for k, v in parse_qs(u.query).items()}
+        book = self.library.books.get(q.get("book", ""))
+        if u.scheme != "muninhall" or not book:
+            self.toast(tr("Книга по ссылке не найдена в библиотеке"))
+            return
+        if not (self.reader and self.reader.book["id"] == book["id"] and self.current() is self.reader):
+            self.on_book_activated(book["id"])
+        if q.get("hl") and self.reader and self.reader.book["id"] == book["id"]:
+            self.reader.go_to_highlight(q["hl"])
 
     # --- скачивание всех книг разом
 
@@ -576,6 +597,7 @@ class App(QObject, Appearance):
         self.library_view._fill_type_combo()
         self.library_view.refresh_library()
         QTimer.singleShot(500, self.library_view._make_pdf_covers)
+        QTimer.singleShot(600, self.obsidian.load_tags)
         if report:
             self.toast(tr('Своих книг и статей: {0}', n))
 
@@ -709,6 +731,7 @@ class App(QObject, Appearance):
         """Копия всех библиотек (scope="all") или одной: "litres" / id своей."""
         self.library.save()
         self.library.flush()
+        self.highlights.flush()
         try:
             path = backup.create(self.settings, reason, scope)
         except (OSError, ValueError) as e:
@@ -737,6 +760,8 @@ class App(QObject, Appearance):
         self.save_audio_progress()
         self.player.unload()
         self.library.flush()
+        self.highlights.flush()
+        self.obsidian.export_pending()
         self.settings.save_now()
         if self.reader:
             self.reader.close_page()
@@ -824,8 +849,11 @@ def _listen(app) -> QLocalServer:
 
         def read():
             for line in bytes(conn.readAll()).decode().splitlines():
-                if line.strip():
-                    app.import_and_open(Path(line.strip()))
+                line = line.strip()
+                if line.startswith("muninhall:"):
+                    app.open_link(line)
+                elif line:
+                    app.import_and_open(Path(line))
             app.window.showNormal() if app.window.isMinimized() else None
             app.window.raise_()
             app.window.activateWindow()
@@ -848,10 +876,13 @@ def _smoke_test(app, qapp):
 
 def main(argv=None):
     argv = sys.argv if argv is None else argv
-    files = [Path(a).resolve() for a in argv[1:] if not a.startswith("-") and Path(a).exists()]
+    links = [a for a in argv[1:] if a.startswith("muninhall:")]      # из Obsidian: место в книге
+    # ярлык передаёт %U: файлы могут прийти как file:///…
+    args = [QUrl(a).toLocalFile() if a.startswith("file://") else a for a in argv[1:]]
+    files = [Path(a).resolve() for a in args if not a.startswith(("-", "muninhall:")) and Path(a).exists()]
     if "--restarted" in argv:
         _wait_for_previous()
-    if _hand_off(files):
+    if _hand_off([*files, *links]):
         return 0
     qapp = _create_qapp(argv)
     if not _migrate():
@@ -864,6 +895,8 @@ def main(argv=None):
     server = _listen(app)
     for f in files:
         QTimer.singleShot(0, lambda f=f: app.import_and_open(f))
+    for link in links:
+        QTimer.singleShot(300, lambda link=link: app.open_link(link))
     if os.environ.get("MUNINHALL_SMOKE_TEST"):
         _smoke_test(app, qapp)
     code = qapp.exec()

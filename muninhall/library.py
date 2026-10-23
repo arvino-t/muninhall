@@ -582,6 +582,9 @@ class LibraryView:
         if nxt:
             menu.addAction(tr('Следующая в серии: {0}', nxt.get('title')),
                            lambda: self.app.on_book_activated(nxt["id"]))
+        if book.get("source") in ("folder", "local") and self.app.obsidian.card_of(book)[0] is not None:
+            from .tags_dialog import show_tags_dialog
+            menu.addAction(tr("Теги…"), lambda: show_tags_dialog(self.app, book))     # карточка в вики
         if book.get("source") == "folder":
             # своя книга: файл остаётся на месте, удалять его из читалки не даём
             menu.addAction(tr("Показать файл в папке"), lambda: QDesktopServices.openUrl(

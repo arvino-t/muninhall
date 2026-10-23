@@ -12,21 +12,23 @@ Reviewed: 2026-10-10 (after 1.1.0).
   associations, uninstall, restart after a restore in the frozen build) and `Muninhall.flatpak` on Linux
   (data shared with the native install, LitRes sign-in inside the sandbox).
 
-## Reader — first priority
-- [ ] **Highlights and notes exported to Obsidian.** Select a quote, add a comment; quotes are collected
-  on the book's page in the wiki with links back to the place in the book. foliate-js can already draw
-  highlights (overlayer).
-  - **"Obsidian vault" setting**: choose the vault folder (`~/Documents` by default), check that it has
-    `CLAUDE.md` / `wiki/` following Karpathy's LLM Wiki layout;
-  - notes go to the wiki layer; sources (`Books/`, `articles/`, `trainings/`) are never touched;
-  - a separate file per book, `wiki/highlights/<Book>.md` (not the `wiki/sources/…` card: cards with
-    `status: indexed` are rebuilt by `build_index.py`); frontmatter per the schema: `type: highlights`,
-    `title`, `sources: [[sources/<Book>]]`, `created`, `updated`;
-  - a link to the highlights page in the source card; an entry in `wiki/log.md` in the
-    `## [YYYY-MM-DD] highlights | <Book>` format (append only);
-  - each quote: text, comment, chapter, link to the place in the book (`litreader://` with a CFI);
-  - highlights of your own books are stored in the library's `.library/` (they travel with the folder);
-  - export right away or with a "To Obsidian" button; edits made in Obsidian are not overwritten.
+## Second brain (Obsidian vault) — the direction
+Goal: see which topics I have mastered, where to look next, which tips and reminders the books give,
+and use the wiki for my own projects (incl. AI). The vault (Karpathy's LLM Wiki in `~/Documents`) is
+the knowledge base; the app talks to it through the Obsidian CLI, with a plain-file fallback.
+- [ ] **1.2 — vault connection and highlights** (in progress): 4 colors (important / advice / concept /
+  question), notes, export to `wiki/highlights/`, `muninhall://` links back, reading status and tags in
+  source cards.
+- [ ] **Graph from Obsidian:** links and nested tags of the wiki (books ↔ topics ↔ concepts ↔ entities ↔
+  projects) instead of LitRes genres.
+- [ ] **Mastery map:** per topic — read / reading / not started, reading time, highlights, concepts;
+  "where to look": topics with unread sources, question highlights, unresolved concepts, orphans.
+- [ ] **Daily review:** 3–5 quotes (advice and important) with spaced repetition, in the right panel
+  under the recent books; copy to the Obsidian daily note.
+- [ ] **Singularity reminders from books** — plan separately how to present them (tasks, habits, notes).
+- [ ] **Projects:** `wiki/projects/` pages; the app shows books, quotes and concepts for a project.
+
+## Reader
 - [ ] **Full-text search in a book** with jumping to results — foliate-js has it, needs a UI.
 - [ ] **Bookmarks** — several marked places in a book, not only the last one (stored in `.library/`
   for your own books).

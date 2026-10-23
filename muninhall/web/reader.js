@@ -59,6 +59,7 @@ const bookCSS = s => {
 
 const applySettings = s => {
     settings = s
+    restyleHighlights()
     const t = THEMES[s.theme] ?? THEMES.light
     document.documentElement.style.setProperty('--bg', t.bg)
     document.documentElement.style.setProperty('--fg', t.fg)
@@ -88,6 +89,222 @@ const flattenTOC = (items, depth = 0, out = []) => {
     return out
 }
 
+// --- выделения: цвет — смысл (важное, совет, понятие, вопрос). Рисуем через CSS Custom Highlight API —
+// одинаково в EPUB/FB2/MOBI и в PDF (у foliate для PDF нет слоя рисования).
+const HL_COLORS = { important: '255,196,0', advice: '76,190,80', concept: '66,145,255', question: '240,98,170' }
+let highlights = []                      // [{id, section, cfi, text, prefix, suffix, color, note}]
+const hlRanges = new Map()               // id → {range, doc} в загруженных разделах
+
+const hlCSS = () => {
+    const dark = settings && !(settings.theme === 'light' || settings.theme === 'sepia')
+    const a = dark ? 0.34 : 0.42
+    return Object.entries(HL_COLORS).map(([k, c]) => `::highlight(mh-${k}) { background-color: rgba(${c}, ${a}); }`)
+        .join('\n') + '\n::highlight(mh-flash) { background-color: rgba(255, 140, 0, 0.7); }'
+}
+const styleDoc = doc => {
+    let el = doc.getElementById('mh-hl-style')
+    if (!el) {
+        el = doc.createElement('style')
+        el.id = 'mh-hl-style'
+        ;(doc.head ?? doc.documentElement).append(el)
+    }
+    el.textContent = hlCSS()
+}
+// Номер раздела документа: в PDF (фиксированная вёрстка) getContents() его не отдаёт — запоминаем при загрузке
+const docIndex = new WeakMap()
+const loadedDocs = () => (view?.renderer?.getContents?.() ?? [])
+    .map(c => ({ ...c, index: c.index ?? (c.doc ? docIndex.get(c.doc) : undefined) }))
+function restyleHighlights() { for (const { doc } of loadedDocs()) if (doc) styleDoc(doc) }
+
+// Текст документа без пробелов с картой «символ → (узел, смещение)»: так цитата находится и в PDF,
+// где текстовый слой расставляет пробелы и переносы по-своему
+const compact = s => (s ?? '').replace(/\s+/g, '')
+const textIndex = doc => {
+    const chars = [], map = []
+    const walker = doc.createTreeWalker(doc.body ?? doc.documentElement, NodeFilter.SHOW_TEXT)
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const v = n.nodeValue
+        for (let i = 0; i < v.length; i++) if (!/\s/.test(v[i])) { chars.push(v[i]); map.push([n, i]) }
+    }
+    return { text: chars.join(''), map }
+}
+const findQuote = (doc, h) => {
+    const { text, map } = textIndex(doc)
+    const q = compact(h.text)
+    if (!q) return null
+    const pre = compact(h.prefix), suf = compact(h.suffix)
+    let at = text.indexOf(pre + q + suf)
+    if (at >= 0) at += pre.length
+    else {
+        at = text.indexOf(q + suf)
+        if (at < 0) { at = text.indexOf(pre + q); if (at >= 0) at += pre.length }
+        if (at < 0) at = text.indexOf(q)
+    }
+    if (at < 0) return null
+    const [sn, so] = map[at], [en, eo] = map[at + q.length - 1]
+    const range = doc.createRange()
+    range.setStart(sn, so)
+    range.setEnd(en, eo + 1)
+    return range
+}
+const resolveRange = async (doc, index, h) => {
+    if (h.cfi) {
+        try {
+            const { index: i, anchor } = await view.resolveNavigation(h.cfi)
+            if (i === index) {
+                const r = anchor(doc)
+                if (r && compact(r.toString()) === compact(h.text)) return r
+            }
+        } catch (_) {}
+    }
+    return findQuote(doc, h)
+}
+const paintDoc = async (doc, index, attempt = 0) => {
+    if (!doc?.defaultView?.CSS?.highlights) return
+    styleDoc(doc)
+    const byColor = {}
+    for (const [id, x] of hlRanges) if (x.doc === doc) hlRanges.delete(id)
+    for (const h of highlights) {
+        if (h.section !== index) continue
+        const range = await resolveRange(doc, index, h)
+        if (!range) continue
+        hlRanges.set(h.id, { range, doc })
+        ;(byColor[h.color] ??= []).push(range)
+    }
+    const win = doc.defaultView
+    for (const k of Object.keys(HL_COLORS)) {
+        if (byColor[k]) win.CSS.highlights.set(`mh-${k}`, new win.Highlight(...byColor[k]))
+        else win.CSS.highlights.delete(`mh-${k}`)
+    }
+    // PDF: текстовый слой pdf.js строится уже после загрузки страницы — не нашли всё, пробуем ещё раз
+    const want = highlights.filter(h => h.section === index).length
+    const got = [...hlRanges.values()].filter(x => x.doc === doc).length
+    if (got < want && attempt < 8) setTimeout(() => paintDoc(doc, index, attempt + 1), 400)
+}
+const setHighlights = async list => {
+    highlights = list ?? []
+    for (const { doc, index } of loadedDocs()) if (doc) await paintDoc(doc, index)
+}
+
+// Панель над выделенным текстом
+const bar = document.createElement('div')
+bar.id = 'hl-bar'
+let barSel = null                        // {doc, index, range}
+const hideBar = () => { bar.classList.remove('shown'); barSel = null }
+const buildBar = () => {
+    bar.replaceChildren()
+    for (const [k, c] of Object.entries(HL_COLORS)) {
+        const d = document.createElement('div')
+        d.className = 'dot'
+        d.style.background = `rgb(${c})`
+        d.title = T(HL_NAMES[k])
+        d.addEventListener('mousedown', e => { e.preventDefault(); addHighlight(k, false) })
+        bar.append(d)
+    }
+    const sep = document.createElement('div')
+    sep.className = 'sep'
+    bar.append(sep)
+    for (const [label, fn] of [[T('Заметка'), () => addHighlight('important', true)],
+                               [T('Копировать'), copySelection]]) {
+        const b = document.createElement('div')
+        b.className = 'act'
+        b.textContent = label
+        b.addEventListener('mousedown', e => { e.preventDefault(); fn() })
+        bar.append(b)
+    }
+}
+const HL_NAMES = { important: 'Важное', advice: 'Совет', concept: 'Понятие', question: 'Вопрос' }
+document.body.append(bar)
+
+const frameOffset = doc => {
+    const frame = doc.defaultView.frameElement
+    const r = frame ? frame.getBoundingClientRect() : { left: 0, top: 0 }
+    return { x: r.left, y: r.top }
+}
+const showBar = (doc, index, range) => {
+    const rects = [...range.getClientRects()]
+    if (!rects.length) return hideBar()
+    if (!bar.childElementCount) buildBar()
+    const off = frameOffset(doc)
+    const top = Math.min(...rects.map(r => r.top)) + off.y
+    const left = (Math.min(...rects.map(r => r.left)) + Math.max(...rects.map(r => r.right))) / 2 + off.x
+    barSel = { doc, index, range: range.cloneRange() }
+    bar.classList.add('shown')
+    const w = bar.offsetWidth, hgt = bar.offsetHeight
+    const y = top - hgt - 10 < 4 ? Math.max(...rects.map(r => r.bottom)) + off.y + 10 : top - hgt - 10
+    bar.style.left = `${Math.max(6, Math.min(window.innerWidth - w - 6, left - w / 2))}px`
+    bar.style.top = `${y}px`
+}
+const onSelectionChange = (doc, index) => {
+    clearTimeout(onSelectionChange.t)
+    onSelectionChange.t = setTimeout(() => {
+        const sel = doc.getSelection()
+        if (!sel || sel.isCollapsed || !sel.rangeCount || !sel.toString().trim()) return hideBar()
+        showBar(doc, index, sel.getRangeAt(0))
+    }, 250)
+}
+const around = (doc, range) => {
+    const body = doc.body ?? doc.documentElement
+    const before = doc.createRange(), after = doc.createRange()
+    before.setStart(body, 0)
+    before.setEnd(range.startContainer, range.startOffset)
+    after.setStart(range.endContainer, range.endOffset)
+    after.setEnd(body, body.childNodes.length)
+    return { prefix: before.toString().slice(-32), suffix: after.toString().slice(0, 32) }
+}
+const addHighlight = (color, withNote) => {
+    if (!barSel) return
+    const { doc, index, range } = barSel
+    const text = range.toString().trim()
+    let cfi = null
+    try { cfi = view.getCFI(index, range) } catch (_) {}
+    const loc = view.lastLocation ?? {}
+    post({ type: 'highlight-add', section: index, cfi, text, ...around(doc, range), color, withNote,
+        chapter: loc.tocItem?.label?.trim() ?? '', fraction: loc.fraction ?? 0 })
+    doc.getSelection()?.removeAllRanges()
+    hideBar()
+}
+const copySelection = () => {
+    if (!barSel) return
+    post({ type: 'copy', text: barSel.range.toString() })
+    barSel.doc.getSelection()?.removeAllRanges()
+    hideBar()
+}
+
+// Клик по выделению — меню (цвет, заметка, удалить); проверяем до перелистывания
+const highlightAt = (doc, e) => {
+    for (const [id, { range, doc: d }] of hlRanges) {
+        if (d !== doc) continue
+        for (const r of range.getClientRects())
+            if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return id
+    }
+    return null
+}
+
+const flash = range => {
+    try {
+        const win = range.startContainer.ownerDocument.defaultView
+        win.CSS.highlights.set('mh-flash', new win.Highlight(range))
+        setTimeout(() => win.CSS.highlights.delete('mh-flash'), 1600)
+    } catch (_) {}
+}
+const goToHighlight = async id => {
+    const h = highlights.find(x => x.id === id)
+    if (!h || !view) return false
+    if (!hlRanges.has(id)) {
+        try {
+            if (h.cfi) await view.goTo(h.cfi)
+            else await view.renderer.goTo({ index: h.section })
+        } catch (_) { await view.renderer.goTo({ index: h.section }) }
+        for (const { doc, index } of loadedDocs()) if (doc && index === h.section) await paintDoc(doc, index)
+    }
+    const x = hlRanges.get(id)
+    if (!x) return false
+    view.renderer.scrollToAnchor?.(x.range, true)
+    flash(x.range)
+    return true
+}
+
 const onKey = e => {
     const k = e.key
     if (k === 'ArrowLeft' || k === 'PageUp' || k === 'h') view?.goLeft()
@@ -104,6 +321,8 @@ const onClick = (doc, e) => {
     if (e.target.closest?.('a[href]')) return
     const sel = doc.getSelection()
     if (sel && !sel.isCollapsed) return
+    const hit = highlightAt(doc, e)
+    if (hit) { post({ type: 'highlight-menu', id: hit }); return }
     const frame = doc.defaultView.frameElement
     const x = (frame ? frame.getBoundingClientRect().left : 0) + e.clientX
     const w = window.innerWidth
@@ -206,6 +425,7 @@ const ttsNext = async () => {
 }
 
 const onRelocate = ({ detail }) => {
+    hideBar()
     const percent = Math.round((detail.fraction ?? 0) * 100)
     const chapter = detail.tocItem?.label?.trim() ?? ''
     $('#percent').textContent = `${percent}%`
@@ -231,7 +451,10 @@ const open = async ({ url, name, cfi, fraction, settings: s, i18n }) => {
         await view.open(file)
 
         view.addEventListener('relocate', onRelocate)
-        view.addEventListener('load', ({ detail: { doc } }) => {
+        view.addEventListener('load', ({ detail: { doc, index } }) => {
+            docIndex.set(doc, index)
+            doc.addEventListener('selectionchange', () => onSelectionChange(doc, index))
+            paintDoc(doc, index)
             doc.addEventListener('keydown', onKey)
             doc.addEventListener('click', e => onClick(doc, e))
             attachGestures(doc)
@@ -273,6 +496,31 @@ window.reader = {
     ttsStart, ttsNext,
     ttsMark: mark => view?.tts?.setMark(mark),
     ttsStop: ttsClear,
+    setHighlights,
+    goToHighlight,
+    // диагностика: по каждому загруженному документу — какие выделения находятся и как
+    // результат — в window.__hlDebug (runJavaScript не ждёт асинхронных функций)
+    debugHighlights: () => { window.__hlDebug = null; debugHighlights().then(r => { window.__hlDebug = r }) },
+}
+
+const debugHighlights = async () => {
+        const out = []
+        for (const { doc, index } of loadedDocs()) {
+            if (!doc) continue
+            const items = []
+            for (const h of highlights) {
+                let viaCfi = null
+                if (h.cfi) {
+                    try {
+                        const r = await view.resolveNavigation(h.cfi)
+                        viaCfi = { index: r.index, text: r.index === index ? (r.anchor(doc)?.toString?.() ?? '').slice(0, 40) : null }
+                    } catch (e) { viaCfi = { error: String(e).slice(0, 80) } }
+                }
+                items.push({ id: h.id, section: h.section, viaCfi, viaText: !!findQuote(doc, h) })
+            }
+            out.push({ index: index ?? null, url: doc.URL.slice(0, 20), text: (doc.body?.textContent ?? '').length, items })
+        }
+        return JSON.stringify(out)
 }
 
 post({ type: 'ready' })

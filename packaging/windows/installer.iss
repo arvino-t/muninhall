@@ -43,6 +43,11 @@ Name: "{userdesktop}\Muninhall"; Filename: "{app}\Muninhall.exe"; Tasks: desktop
 Root: HKCU; Subkey: "Software\Classes\Muninhall.Book"; ValueType: string; ValueData: "E-book"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\Muninhall.Book\DefaultIcon"; ValueType: string; ValueData: "{app}\Muninhall.exe,0"
 Root: HKCU; Subkey: "Software\Classes\Muninhall.Book\shell\open\command"; ValueType: string; ValueData: """{app}\Muninhall.exe"" ""%1"""
+; ссылки muninhall://open?book=…&hl=… из Obsidian — место в книге
+Root: HKCU; Subkey: "Software\Classes\muninhall"; ValueType: string; ValueData: "URL:Muninhall"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\muninhall"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\muninhall\DefaultIcon"; ValueType: string; ValueData: "{app}\Muninhall.exe,0"
+Root: HKCU; Subkey: "Software\Classes\muninhall\shell\open\command"; ValueType: string; ValueData: """{app}\Muninhall.exe"" ""%1"""
 Root: HKCU; Subkey: "Software\Classes\.epub\OpenWithProgids"; ValueType: string; ValueName: "Muninhall.Book"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Classes\.fb2\OpenWithProgids"; ValueType: string; ValueName: "Muninhall.Book"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Classes\.fbz\OpenWithProgids"; ValueType: string; ValueName: "Muninhall.Book"; ValueData: ""; Flags: uninsdeletevalue

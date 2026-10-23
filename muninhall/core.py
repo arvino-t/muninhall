@@ -126,13 +126,16 @@ CONFIG_FILE = CONFIG_DIR / "settings.json"
 LIBRARY_FILE = DATA_DIR / "library.json"
 PROGRESS_FILE = DATA_DIR / "progress.json"
 STATS_FILE = DATA_DIR / "stats.json"
+HIGHLIGHTS_FILE = DATA_DIR / "highlights.json"
 # Данные своей библиотеки лежат в её корневой папке — едут вместе с книгами (облако, другой компьютер)
 LIBRARY_STORE = ".library"
 STORE_BOOKS = "books.json"
 STORE_PROGRESS = "progress.json"
 STORE_GRAPH = "graph.json"
+STORE_HIGHLIGHTS = "highlights.json"
 # Поля книги из папки, которые получаются сканированием (в хранилище библиотеки не пишутся)
-FOLDER_DERIVED = {"id", "source", "format", "path", "title", "authors", "section", "collection", "library", "rel"}
+FOLDER_DERIVED = {"id", "source", "format", "path", "title", "authors", "section", "collection", "library", "rel",
+                  "vault_tags"}
 
 
 def folder_library_id(path) -> str:
@@ -238,6 +241,11 @@ DEFAULT_SETTINGS = {
     "backupKeep": 10,
     "backupLast": None,
     "backupToken": False,
+    # Хранилище Obsidian (второй мозг): папка (None — Документы, если там вики), выгружать ли выделения,
+    # свои названия цветов выделения {important|advice|concept|question: название}
+    "obsidianVault": None,
+    "obsidianExport": True,
+    "highlightColors": None,
 }
 
 # Особое значение фильтра по папкам: книги, не лежащие ни в одной папке

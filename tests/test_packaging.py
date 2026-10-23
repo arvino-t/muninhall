@@ -17,3 +17,11 @@ def test_package_data_covers_assets():
                 if not any(fnmatch.fnmatchcase(rel, g) and rel.count("/") == g.count("/") for g in globs):
                     missing.append(rel)
     assert not missing, f"не попадут в пакет: {missing[:10]} (всего {len(missing)})"
+
+
+def test_service_fallback_icons_are_bundled():
+    """Запасной значок сервиса показывается, пока не скачан favicon, — он должен быть в наборе приложения."""
+    from muninhall.settings import SERVICES
+    from muninhall.style import ICONS_DIR
+    missing = [s["fallback"] for s in SERVICES.values() if not (ICONS_DIR / f"{s['fallback']}.svg").exists()]
+    assert not missing, missing
