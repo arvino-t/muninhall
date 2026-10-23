@@ -14,7 +14,8 @@ from PySide6.QtWidgets import (QButtonGroup, QComboBox, QFrame, QHBoxLayout, QLi
 from . import libraries, style
 from .i18n import tr
 from .core import COVERS_DIR, NO_FOLDER, SORT_MODES, STATUS_FILTERS, log
-from .widgets import (BookCard, cls, FlowLayout, HeaderBar, IconButton, label, Popover, RecentPanel, Spinner)
+from .widgets import (BookCard, cls, enable_touch_scroll, FlowLayout, HeaderBar, IconButton, label, Popover,
+                      RecentPanel, Spinner)
 
 EBOOK_PATTERNS = "*.epub *.fb2 *.fb2.zip *.fbz *.mobi *.azw3"
 
@@ -116,6 +117,7 @@ class LibraryView:
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(self.grid_widget)
+        enable_touch_scroll(scroll)                   # сетка книг прокручивается пальцем
         self.content.addWidget(scroll)
 
         # Справа — «Продолжить чтение»: две последние читаемые книги

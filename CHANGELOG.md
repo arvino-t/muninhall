@@ -6,6 +6,11 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
 
 ## [Unreleased]
 
+### Fixed
+- Touch gestures on the main screen: the book grid and the right panel scroll with a finger (kinetic, no
+  edge bounce); a swipe over a cover no longer opens the book; a long press opens the book menu once (it
+  could open twice) and at the finger, and never while scrolling.
+
 ### Added
 - **Focus** (UI name; was "Growth focus"): a "◎ Focus" button under Continue reading opens a popover with
   every active focus; up to two focuses at once; focus books in Continue reading get a green border.

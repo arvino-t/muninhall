@@ -17,6 +17,88 @@ from .core import CACHE_DIR
 from .i18n import tr
 
 
+TAP_SLOP = 12          # сдвиг пальца/мыши (px), после которого нажатие — уже прокрутка, а не щелчок
+
+
+def enable_touch_scroll(area):
+    """Прокрутка области пальцем (сенсорный экран): плавная, с инерцией, без «пружины» на краях.
+    Мышь и тачпад прокручивают как обычно."""
+    from PySide6.QtWidgets import QScroller, QScrollerProperties
+    viewport = area.viewport()
+    QScroller.grabGesture(viewport, QScroller.ScrollerGestureType.TouchGesture)
+    scroller = QScroller.scroller(viewport)
+    props = scroller.scrollerProperties()
+    off = QScrollerProperties.OvershootPolicy.OvershootAlwaysOff
+    props.setScrollMetric(QScrollerProperties.ScrollMetric.HorizontalOvershootPolicy, off)
+    props.setScrollMetric(QScrollerProperties.ScrollMetric.VerticalOvershootPolicy, off)
+    props.setScrollMetric(QScrollerProperties.ScrollMetric.DragStartDistance, 0.004)   # ~4 мм — уже прокрутка
+    props.setScrollMetric(QScrollerProperties.ScrollMetric.DecelerationFactor, 0.2)
+    scroller.setScrollerProperties(props)
+
+    def on_state(state):
+        # прокрутка забрала касание: карточка уже получила «нажатие», но «отпускания» не будет —
+        # сбрасываем, иначе сработало бы долгое нажатие (меню) посреди прокрутки
+        if state in (QScroller.State.Dragging, QScroller.State.Scrolling) and area.widget() is not None:
+            for w in area.widget().findChildren(QWidget):
+                if isinstance(w, TapMixin):
+                    w._tap_cancel()
+    scroller.stateChanged.connect(on_state)
+    return scroller
+
+
+class TapMixin:
+    """Нажатие на карточку: короткое — «открыть», долгое — меню (там, где палец), а если палец или мышь
+    сдвинулись — это прокрутка: ни открытия, ни меню. Одинаково для мыши и сенсорного экрана."""
+
+    LONG_PRESS_MS = 550
+
+    def _tap_init(self):
+        self._press_timer = QTimer(self, singleShot=True, interval=self.LONG_PRESS_MS)
+        self._press_timer.timeout.connect(self._tap_long)
+        self._press_pos = None
+        self._press_global = None
+        self._long_pressed = False
+
+    def _tap_press(self, e) -> bool:
+        """True — нажатие левой кнопкой (или пальцем), отслеживаем."""
+        self._long_pressed = False
+        if e.button() != Qt.MouseButton.LeftButton:
+            return False
+        self._press_pos = e.position().toPoint()
+        self._press_global = e.globalPosition().toPoint()
+        self._press_timer.start()
+        return True
+
+    def _tap_move(self, e):
+        if self._press_pos is not None and \
+                (e.position().toPoint() - self._press_pos).manhattanLength() > TAP_SLOP:
+            self._press_timer.stop()                # палец поехал — это прокрутка
+            self._press_pos = None
+
+    def _tap_release(self, e) -> bool:
+        """True — это был короткий щелчок по карточке (открыть)."""
+        self._press_timer.stop()
+        tap = (e.button() == Qt.MouseButton.LeftButton and self._press_pos is not None and not self._long_pressed
+               and self.rect().contains(e.position().toPoint()))
+        self._press_pos = None
+        return tap
+
+    def _tap_cancel(self):
+        """Прокрутка (QScroller) забрала касание."""
+        self._press_timer.stop()
+        self._press_pos = None
+
+    def _tap_long(self):
+        if self._press_pos is None:
+            return
+        self._long_pressed = True
+        self._press_pos = None
+        self.long_pressed_at(self._press_global or self.mapToGlobal(self.rect().center()))
+
+    def long_pressed_at(self, global_pos):
+        """Долгое нажатие — переопределяется."""
+
+
 def cls(widget, *names):
     """Задать «CSS-классы» виджету (как add_css_class в GTK)."""
     current = widget.property("cls") or []
@@ -470,7 +552,7 @@ class Cover(QWidget):
         p.end()
 
 
-class BookCard(QFrame):
+class BookCard(TapMixin, QFrame):
     """Карточка книги в сетке библиотеки."""
 
     activated = Signal(str)
@@ -503,10 +585,7 @@ class BookCard(QFrame):
         self.audio = IconBadge(self.cover, "audio-headphones", tr("Аудиокнига"))
         self.audio.move(Cover.W - 32, Cover.H - 28)
 
-        self._press_timer = QTimer(self, singleShot=True, interval=550)
-        self._press_timer.timeout.connect(self._long_press)
-        self._long_pressed = False
-        self.grabGesture(Qt.GestureType.TapAndHoldGesture)
+        self._tap_init()
 
     def update_book(self, book, lib):
         title = book.get("title") or ""
@@ -559,29 +638,18 @@ class BookCard(QFrame):
     # --- нажатия: короткое — открыть, долгое или правая кнопка — меню
 
     def mousePressEvent(self, e):
-        self._long_pressed = False
-        if e.button() == Qt.MouseButton.LeftButton:
-            self._press_timer.start()
-        elif e.button() == Qt.MouseButton.RightButton:
+        if not self._tap_press(e) and e.button() == Qt.MouseButton.RightButton:
             self.menu_requested.emit(self.book_id, e.globalPosition().toPoint())
 
+    def mouseMoveEvent(self, e):
+        self._tap_move(e)
+
     def mouseReleaseEvent(self, e):
-        self._press_timer.stop()
-        if e.button() == Qt.MouseButton.LeftButton and not self._long_pressed \
-                and self.rect().contains(e.position().toPoint()):
+        if self._tap_release(e):
             self.activated.emit(self.book_id)
 
-    def _long_press(self):
-        self._long_pressed = True
-        self.menu_requested.emit(self.book_id, self.mapToGlobal(self.rect().center()))
-
-    def event(self, e):
-        if e.type() == e.Type.Gesture:
-            g = e.gesture(Qt.GestureType.TapAndHoldGesture)
-            if g and g.state() == Qt.GestureState.GestureFinished:
-                self._long_press()
-                return True
-        return super().event(e)
+    def long_pressed_at(self, global_pos):
+        self.menu_requested.emit(self.book_id, global_pos)
 
 
 class SeekSlider(QSlider):
@@ -606,7 +674,7 @@ class SeekSlider(QSlider):
         super().mousePressEvent(e)
 
 
-class RecentCard(QFrame):
+class RecentCard(TapMixin, QFrame):
     """Карточка в панели «Продолжить чтение» (две рядом): обложка сверху, название, глава, прогресс, кнопка."""
 
     activated = Signal(str)
@@ -616,6 +684,7 @@ class RecentCard(QFrame):
     def __init__(self):
         super().__init__()
         self.book_id = None
+        self._tap_init()
         cls(self, "recentcard")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         col = QVBoxLayout(self)
@@ -671,8 +740,14 @@ class RecentCard(QFrame):
         self.button.setText(tr("Слушать") if book.get("is_audio") else tr("Читать"))
         self.cover.set_cover(lib.cover_path(book), title)
 
+    def mousePressEvent(self, e):
+        self._tap_press(e)
+
+    def mouseMoveEvent(self, e):
+        self._tap_move(e)
+
     def mouseReleaseEvent(self, e):
-        if e.button() == Qt.MouseButton.LeftButton and self.rect().contains(e.position().toPoint()):
+        if self._tap_release(e):
             self.activated.emit(self.book_id)
 
 
@@ -695,6 +770,7 @@ class RecentPanel(QFrame):
         scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; }")
         inner = QWidget()
         scroll.setWidget(inner)
+        enable_touch_scroll(scroll)
         outer.addWidget(scroll)
         lay = QVBoxLayout(inner)
         lay.setContentsMargins(16, 16, 16, 16)

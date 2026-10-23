@@ -90,3 +90,36 @@ def test_settings_autosave_and_signal(tmp_path):
     st.pop("fontSize")
     assert "fontSize" not in st and seen[-1] == "fontSize"
     QCoreApplication.processEvents()
+
+
+def test_card_tap_drag_and_long_press():
+    """Обложка: короткое нажатие — открыть; сдвиг пальца — прокрутка (ничего); долгое — меню один раз."""
+    from PySide6.QtCore import QPointF, Qt
+    from PySide6.QtGui import QMouseEvent
+    from muninhall.widgets import BookCard
+    card = BookCard("b1")
+    card.resize(150, 260)
+    opened, menus = [], []
+    card.activated.connect(opened.append)
+    card.menu_requested.connect(lambda bid, pos: menus.append(bid))
+
+    def ev(kind, x, y, buttons=Qt.MouseButton.LeftButton):
+        t = {"press": QMouseEvent.Type.MouseButtonPress, "move": QMouseEvent.Type.MouseMove,
+             "release": QMouseEvent.Type.MouseButtonRelease}[kind]
+        btn = Qt.MouseButton.NoButton if kind == "move" else Qt.MouseButton.LeftButton
+        return QMouseEvent(t, QPointF(x, y), QPointF(x, y), btn, buttons, Qt.KeyboardModifier.NoModifier)
+    card.mousePressEvent(ev("press", 50, 50))
+    card.mouseReleaseEvent(ev("release", 52, 51))
+    assert opened == ["b1"] and not menus                      # короткое нажатие
+    card.mousePressEvent(ev("press", 50, 50))
+    card.mouseMoveEvent(ev("move", 50, 80))
+    card.mouseReleaseEvent(ev("release", 50, 80))
+    assert opened == ["b1"] and not card._press_timer.isActive()   # провели пальцем — не открыли
+    card.mousePressEvent(ev("press", 50, 50))
+    card._press_timer.timeout.emit()                           # прошло время долгого нажатия
+    card.mouseReleaseEvent(ev("release", 50, 50))
+    assert menus == ["b1"] and opened == ["b1"]                # меню один раз, книга не открыта
+    card.mousePressEvent(ev("press", 50, 50))
+    card._tap_cancel()                                         # прокрутка забрала касание
+    card._press_timer.timeout.emit()
+    assert menus == ["b1"]
