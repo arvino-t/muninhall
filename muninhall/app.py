@@ -434,7 +434,7 @@ class App(QObject, Appearance):
             if p["enough"]:
                 self.toast(tr("{0}. По фокусу «{1}» прочитано достаточно — пора закрепить и сменить фокус",
                               text, fb["name"]), button=tr("Фокус"),
-                           on_button=self.show_focus_dialog, timeout=12000)
+                           on_button=self.show_focus, timeout=12000)
                 return
             nxt = p["next"]
             if nxt:
@@ -477,10 +477,6 @@ class App(QObject, Appearance):
 
     # --- фокус на развитии
 
-    def show_focus_dialog(self):
-        from .focus_dialog import show_focus_dialog
-        show_focus_dialog(self)
-
     def toggle_focus_book(self, book, inside: bool, fid: str | None = None):
         self.focus.toggle_book(book, inside, fid)
         self.on_focus_changed()
@@ -496,6 +492,8 @@ class App(QObject, Appearance):
         view.update_recent_panel()
         if self.graph_page is not None:
             self.graph_page.refresh()
+        if getattr(self.current(), "follows_focus", False):
+            self.current().refresh()
         self.focus_page.export()
 
     def open_link(self, url: str):
@@ -629,10 +627,10 @@ class App(QObject, Appearance):
 
     # --- граф книг
 
-    def show_mastery(self):
-        """Карта освоения: что я знаю — темы с уровнем освоения."""
-        from .mastery_page import MasteryPage
-        self.push(MasteryPage(self))
+    def show_focus(self):
+        """Страница «Фокус»: текущие фокусы и карта освоения."""
+        from .focus_view import FocusView
+        self.push(FocusView(self))
 
     def show_graph(self):
         """Граф библиотеки, выбранной в фильтре «Источник» (или всех)."""

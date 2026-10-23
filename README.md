@@ -126,7 +126,8 @@ Environment variables:
 | `muninhall/wiki_cards.py` | reading status and tags in the books' wiki cards; card tags for the graph and focus |
 | `muninhall/focus_page.py` | the focus page in the wiki (`wiki/plans/Фокус — …`) |
 | `muninhall/book_tags.py` | one set of rules for a book's tags (graph, focus) and their kind names |
-| `muninhall/mastery.py`, `mastery_page.py` | the mastery map: topic levels, tips, the page and its wiki copy |
+| `muninhall/mastery.py` | the mastery map: topic levels and "where to look" tips |
+| `muninhall/focus_view.py`, `focus_widget.py` | the Focus page: current focuses on top, the mastery map below (and its wiki copy) |
 | `muninhall/wiki_graph.py` | the wiki graph for the book graph (pages, links, cards) and possible tags |
 | `muninhall/review.py`, `review_widget.py` | daily review: spaced repetition of highlights, random passages; the panel section |
 | `muninhall/focus.py`, `focus_dialog.py`, `focus_widget.py` | growth focus: focus books, next book, switch advice; dialog; panel section |

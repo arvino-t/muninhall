@@ -7,7 +7,10 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
 ## [Unreleased]
 
 ### Added
-- Mastery map ("What I know", menu → "Mastery map"): library topics with a level — not started, getting
+- Focus page with the mastery map: the "◎ Focus" button (and menu → "Focus and mastery map") opens one
+  page — the current focuses on top (instead of the popover), the mastery map below; topics already in
+  focus are framed green.
+- Mastery map ("What I know"): library topics with a level — not started, getting
   acquainted, learning, understanding, mastered — from books read and books ingested in the wiki; reading
   time, quotes and questions per topic; "where to look" tips (started but nothing finished, unanswered
   questions, read but not consolidated, mastered — change the focus, big untouched topics); "Make it the

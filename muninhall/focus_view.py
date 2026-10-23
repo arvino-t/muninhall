@@ -1,4 +1,5 @@
-"""Страница «Карта освоения»: что я знаю — темы с уровнем освоения и что делать дальше; копия — в вики."""
+"""Страница «Фокус»: сверху — текущие фокусы, ниже — карта освоения (что я знаю: темы с уровнем освоения и
+что делать дальше; копия — в вики). Тему из карты можно сделать фокусом, темы в фокусе отмечены."""
 from __future__ import annotations
 
 from datetime import date
@@ -8,7 +9,9 @@ from PySide6.QtWidgets import (QFrame, QHBoxLayout, QProgressBar, QPushButton, Q
                                QWidget)
 
 from . import mastery
+from .book_tags import norm
 from .core import log
+from .focus_widget import FocusPanel
 from .i18n import tr
 from .widgets import HeaderBar, IconButton, cls, enable_touch_scroll, label
 
@@ -17,8 +20,9 @@ LEVEL_COLORS = {"none": "#9a9996", "started": "#62a0ea", "learning": "#3584e4", 
 WIKI_PAGE = "wiki/plans/Карта освоения.md"
 
 
-class MasteryPage(QWidget):
+class FocusView(QWidget):
     transient = True            # после ухода со страницы — удалить (App.go_back)
+    follows_focus = True        # фокус изменился — App.on_focus_changed обновляет страницу
 
     def __init__(self, app):
         super().__init__()
@@ -27,7 +31,7 @@ class MasteryPage(QWidget):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
-        header = HeaderBar(app.window, tr("Карта освоения"))
+        header = HeaderBar(app.window, tr("Фокус"))
         back = IconButton("go-previous", tr("Назад"))
         back.clicked.connect(app.go_back)
         header.pack_start(back)
@@ -59,10 +63,17 @@ class MasteryPage(QWidget):
         while self.box.count():
             item = self.box.takeAt(0)
             if item.widget():
+                item.widget().hide()                 # deleteLater — позже, а перерисовка — сразу
                 item.widget().deleteLater()
+        panel = FocusPanel(self.app)
+        panel.refresh()
+        self.box.addWidget(panel)
         topics = self.topics()
         names = mastery.level_names()
         counts = {lv: sum(1 for t in topics if t.level == lv) for lv in mastery.LEVELS}
+        self.in_focus = set().union(*(norm(f.get("labels") or []) for f in self.app.focus.actives))
+        self.box.addSpacing(8)
+        self.box.addWidget(label(tr("Карта освоения"), "title1"))
         self.box.addWidget(label(tr("Что я знаю: темы библиотеки по уровню освоения. Уровень растёт с прочитанными "
                                     "книгами и с тем, что осмыслено в вики."), "dim", wrap=True))
         self.box.addWidget(label(" · ".join(f"{names[lv]}: {counts[lv]}" for lv in reversed(mastery.LEVELS)
@@ -86,7 +97,7 @@ class MasteryPage(QWidget):
         h = QHBoxLayout(row)
         h.setContentsMargins(12, 8, 12, 8)
         h.addWidget(label(mastery.tip_text(kind, t), "caption", wrap=True), 1)
-        if kind in ("continue", "untouched"):
+        if kind in ("continue", "untouched") and not self._focused(t):
             b = QPushButton(tr("Сделать фокусом"))
             b.clicked.connect(lambda _=False, tt=t: self._make_focus(tt))
             h.addWidget(b)
@@ -101,6 +112,8 @@ class MasteryPage(QWidget):
     def _topic_card(self, t, names) -> QWidget:
         card = QFrame()
         cls(card, "recentcard")
+        if self._focused(t):
+            cls(card, "focuscard")                            # зелёная рамка, как у книг фокуса
         v = QVBoxLayout(card)
         v.setContentsMargins(14, 10, 14, 10)
         v.setSpacing(4)
@@ -148,13 +161,19 @@ class MasteryPage(QWidget):
         toggle.setCheckable(True)
         toggle.toggled.connect(books.setVisible)
         buttons.addWidget(toggle)
-        focus = QPushButton(tr("Сделать фокусом"))
-        focus.clicked.connect(lambda _=False, tt=t: self._make_focus(tt))
-        buttons.addWidget(focus)
+        if self._focused(t):
+            buttons.addWidget(label(tr("◎ В фокусе"), "caption"))
+        else:
+            focus = QPushButton(tr("Сделать фокусом"))
+            focus.clicked.connect(lambda _=False, tt=t: self._make_focus(tt))
+            buttons.addWidget(focus)
         buttons.addStretch()
         v.addLayout(buttons)
         v.addWidget(books)
         return card
+
+    def _focused(self, t) -> bool:
+        return (t.kind, t.name.lower()) in self.in_focus
 
     def _make_focus(self, t):
         from .focus import ENOUGH_DEFAULT

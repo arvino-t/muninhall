@@ -180,8 +180,9 @@ of LitRes books are in the app data. Everything goes into backups.
 
 ## Focus
 
-Your current reading priority: the topic you are developing now. Set it in the menu → "Focus…" or with
-"◎ Set focus" under "Continue reading".
+Your current reading priority: the topic you are developing now. The "◎ Focus" button under "Continue
+reading" (or menu → "Focus and mastery map") opens the Focus page: your current focuses on top, the
+[mastery map](#mastery-map) below; any topic from the map can be made the focus right there.
 
 - **A focus** is a name and tags (genres, LitRes and wiki tags, topics, series, authors): books with them
   join the focus automatically. Add or remove a single book from its menu ("Add to focus", "Remove from
@@ -200,14 +201,15 @@ Your current reading priority: the topic you are developing now. Set it in the m
 
 ## Mastery map
 
-"What I know": menu → "Mastery map". Library topics (wiki topics, genres, your folders' topics, wiki tags —
+"What I know" — the lower part of the Focus page. Library topics (wiki topics, genres, your folders' topics, wiki tags —
 from three books) with a mastery level:
 
 - **Not started → Getting acquainted → Learning → Understanding → Mastered.** The level grows with the books
   of the topic you have read and with what is ingested in the wiki (a book card with `status: ingested`).
   "Mastered" means 5 books read and at least 40% of the topic, or 3 read and 2 ingested.
 - For each topic: read out of how many, reading, reading time, quotes and questions from highlights;
-  "Topic books" lists them with a jump to the book; "Make it the focus".
+  "Topic books" lists them with a jump to the book; "Make it the focus". Topics already in focus have a
+  green frame.
 - **Where to look**: started topics with nothing finished; unanswered questions (pink highlights) with a jump
   to the question; read but not consolidated by quotes or a summary; mastered topics — time to change the
   focus; big topics not started yet.

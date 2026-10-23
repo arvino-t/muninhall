@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (QButtonGroup, QComboBox, QFrame, QHBoxLayout, QLi
 from . import libraries, style
 from .i18n import tr
 from .core import COVERS_DIR, NO_FOLDER, SORT_MODES, STATUS_FILTERS, log
-from .widgets import (BookCard, cls, enable_touch_scroll, FlowLayout, HeaderBar, IconButton, label, Popover,
+from .widgets import (BookCard, cls, enable_touch_scroll, FlowLayout, HeaderBar, IconButton, label,
                       RecentPanel, Spinner)
 
 EBOOK_PATTERNS = "*.epub *.fb2 *.fb2.zip *.fbz *.mobi *.azw3"
@@ -83,8 +83,7 @@ class LibraryView:
         self.menu.addAction(tr("Настройки… (Ctrl+,)"), self.app.show_settings)
         self.menu.addAction(tr("Статистика чтения"), self.app.show_stats_dialog)
         self.menu.addAction(tr("Граф книг (Ctrl+G)"), self.app.show_graph)
-        self.menu.addAction(tr("Фокус…"), self.app.show_focus_dialog)
-        self.menu.addAction(tr("Карта освоения"), self.app.show_mastery)
+        self.menu.addAction(tr("Фокус и карта освоения"), self.app.show_focus)
         self.menu.addSeparator()
         self.menu.addAction(tr("О приложении"), self.app.on_about)
         menu_btn.clicked.connect(lambda: self.menu.popup(menu_btn.mapToGlobal(QPoint(0, menu_btn.height() + 4))))
@@ -125,14 +124,11 @@ class LibraryView:
         self.recent_panel = RecentPanel(count=2)
         self.recent_panel.activated.connect(self.app.on_book_activated)
         from .review_widget import ReviewPanel
-        # «Фокус» — кнопка под «Продолжить чтение», подробности во всплывающей панели
-        from .focus_widget import FocusPanel
-        self.focus_panel = FocusPanel(self.app)
-        self.focus_popover = Popover(self.focus_panel)
+        # «Фокус» — кнопка под «Продолжить чтение»: страница фокуса и карты освоения
         self.focus_btn = QPushButton()
         self.focus_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.focus_btn.setStyleSheet("text-align: left; padding: 7px 12px;")
-        self.focus_btn.clicked.connect(self._show_focus_popover)
+        self.focus_btn.clicked.connect(self.app.show_focus)
         self.recent_panel.extra.insertWidget(0, self.focus_btn)
         self.review_panel = ReviewPanel(self.app)              # «Просмотр дня»: моя цитата и отрывок из книги
         self.recent_panel.extra.addWidget(self.review_panel)
@@ -161,16 +157,6 @@ class LibraryView:
         self.focus_btn.setText("◎ " + fm.elidedText(text, Qt.TextElideMode.ElideRight, 380))
         self.focus_btn.setToolTip(tr("Фокус") + (": " + ", ".join(names) if names else ""))
         self.update_recent_panel()
-        if self.focus_popover.isVisible():
-            self.focus_panel.refresh()
-
-    def _show_focus_popover(self):
-        try:
-            self.focus_panel.refresh()
-        except Exception as e:                       # сбой не должен ломать библиотеку
-            from .core import log
-            log("фокус:", e)
-        self.focus_popover.popup_under(self.focus_btn)
 
     def set_focus_only(self, on: bool):
         """Фильтр «только книги фокуса»."""

@@ -1,10 +1,10 @@
-"""«Фокус»: кнопка под «Продолжить чтение» и её всплывающая панель — активные фокусы (до двух):
-прогресс, следующая книга, похожие книги, предложение сменить фокус, когда прочитано достаточно."""
+"""«Сейчас в фокусе» — верх страницы «Фокус»: активные фокусы (до двух) — прогресс, следующая книга,
+похожие книги, предложение сменить фокус, когда прочитано достаточно."""
 from __future__ import annotations
 
 import html
 
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from .focus import ENOUGH_DEFAULT, MAX_ACTIVE
 from .focus_dialog import show_focus_dialog
@@ -13,14 +13,11 @@ from .widgets import cls, label
 
 
 class FocusPanel(QWidget):
-    """Содержимое всплывающей панели «Фокус»."""
-
     def __init__(self, app):
         super().__init__()
         self.app = app
-        self.setFixedWidth(400)
         self.box = QVBoxLayout(self)
-        self.box.setContentsMargins(4, 4, 4, 4)
+        self.box.setContentsMargins(0, 0, 0, 0)
         self.box.setSpacing(8)
 
     def _clear(self, layout=None):
@@ -28,6 +25,7 @@ class FocusPanel(QWidget):
         while layout.count():
             item = layout.takeAt(0)
             if item.widget():
+                item.widget().hide()                 # deleteLater — позже, а перерисовка — сразу
                 item.widget().deleteLater()
             elif item.layout():
                 self._clear(item.layout())
@@ -42,55 +40,39 @@ class FocusPanel(QWidget):
                 cls(b, "suggested")
             b.clicked.connect(slot)
             row.addWidget(b)
+        row.addStretch()
         layout.addLayout(row)
 
-    def _close_popup(self):
-        w = self.window()
-        if w is not self.app.window:                    # всплывающая панель — отдельное окно
-            w.hide()
-
     def _edit(self, **kw):
-        self._close_popup()
         show_focus_dialog(self.app, **kw)
 
     def refresh(self):
         self._clear()
         store = self.app.focus
-        self.box.addWidget(label(tr("Фокус"), "title2"))
+        self.box.addWidget(label(tr("Сейчас в фокусе"), "title2"))
         actives = store.actives
         if not actives:
             self.box.addWidget(label(tr("Задайте тему, которую сейчас развиваете, — приложение будет подсказывать "
-                                        "самые подходящие книги и вовремя предложит сменить фокус."), "caption",
-                                     wrap=True))
+                                        "самые подходящие книги и вовремя предложит сменить фокус. Тему можно "
+                                        "выбрать и в карте освоения ниже."), "caption", wrap=True))
             self._buttons(self.box, (tr("Задать фокус"), lambda: self._edit(new=True), True))
-            self._fit_labels()
             return
-        for f in actives:
-            self._focus_block(f)
+        for f in actives:                             # друг под другом: рядом Qt обрезает переносимый текст
+            self.box.addWidget(self._focus_block(f))
         view = self.app.library_view
         specs = [(tr("Все книги фокуса") if not view.focus_only else tr("Вся библиотека"), self._toggle_filter, False)]
         if len(actives) < MAX_ACTIVE:
             specs.append((tr("Добавить второй фокус"), lambda: self._edit(new=True), False))
         self._buttons(self.box, *specs)
-        self._fit_labels()
 
-    def _fit_labels(self):
-        """Во всплывающем окне Qt считает высоту переносимых подписей до раскладки — задаём её по ширине."""
-        for lbl in self.findChildren(QLabel):
-            if lbl.wordWrap():
-                inner = isinstance(lbl.parentWidget(), QFrame)          # подпись внутри карточки фокуса
-                width = self.width() - 8 - (24 if inner else 0)
-                lbl.setMinimumHeight(lbl.heightForWidth(width))
-        self.adjustSize()
-
-    def _focus_block(self, f):
+    def _focus_block(self, f) -> QWidget:
         store = self.app.focus
         card = QFrame()
         cls(card, "recentcard")
+        cls(card, "focuscard")
         box = QVBoxLayout(card)
-        box.setContentsMargins(12, 10, 12, 10)
+        box.setContentsMargins(14, 10, 14, 10)
         box.setSpacing(5)
-        self.box.addWidget(card)
         p = store.progress(f)
         box.addWidget(label(f["name"], "heading", wrap=True))
         bar = QProgressBar()
@@ -129,12 +111,14 @@ class FocusPanel(QWidget):
                         "dim", "caption", wrap=True, rich=True)
             rel.setToolTip(tr("Можно добавить в фокус из меню книги"))
             box.addWidget(rel)
+        box.addStretch()
         specs = []
         if nxt:
             specs.append((tr("Слушать") if nxt.get("is_audio") else tr("Читать"),
-                          lambda _=False, bid=nxt["id"]: self._open(bid), True))
+                          lambda _=False, bid=nxt["id"]: self.app.on_book_activated(bid), True))
         specs.append((tr("Изменить"), lambda _=False, fid=f["id"]: self._edit(fid=fid), False))
         self._buttons(box, *specs)
+        return card
 
     def _replace(self, old_fid, kind, name):
         """Сменить фокус на предложенную тему: новый заменяет тот, по которому прочитано достаточно."""
@@ -142,11 +126,8 @@ class FocusPanel(QWidget):
         self.app.on_focus_changed()
         self._edit(fid=self.app.focus.actives[-1]["id"])   # сразу уточнить теги нового фокуса
 
-    def _open(self, bid):
-        self._close_popup()
-        self.app.on_book_activated(bid)
-
     def _toggle_filter(self):
+        """Оставить в библиотеке только книги фокуса (или вернуть все) — и показать библиотеку."""
         view = self.app.library_view
         view.set_focus_only(not view.focus_only)
-        self.refresh()
+        self.app.pop_to_library()
