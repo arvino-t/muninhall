@@ -93,8 +93,8 @@ EN = {
     "Название раздела для папки\n{0}": "Section name for the folder\n{0}",
     "Эта папка уже добавлена": "This folder is already added",
     "Задачи «Читаю»": "“Reading” tasks",
-    "Начатые книги — задачи в проекте «Книги», дочитанные закрываются":
-        "Started books become tasks in the “Книги” project; finished ones are closed",
+    "Начатые книги — задачи в проекте для книг, дочитанные закрываются":
+        "Started books become tasks in the books project; finished ones are closed",
     "Прогресс в задаче": "Progress in the task",
     "Процент и текущая глава в заметке задачи": "Percent and current chapter in the task note",
     "«Хочу прочитать»": "“Want to read”",
@@ -386,10 +386,29 @@ EN = {
     "Вход не выполнен": "Not signed in",
     "обычная": "normal",
 
+    "ЛитРес долго не отвечает.": "LitRes is taking too long to respond.",
+    "Аппаратная отрисовка страниц": "Hardware page rendering",
+    "Читалка и вход в ЛитРес рисуются видеокартой. Если эти окна остаются белыми — "
+    "выключите. Применяется после перезапуска.":
+        "The reader and the LitRes sign-in are drawn by the graphics card. If these windows stay white, "
+        "turn it off. Takes effect after a restart.",
+    "Не удалось открыть ЛитРес.": "Couldn't open LitRes.",
+    "Встроенный браузер остановился.": "The built-in browser stopped.",
+    "Проверьте интернет. Если включён VPN — ЛитРес открывается только с российских адресов: "
+    "отключите VPN или добавьте litres.ru в его исключения, затем нажмите «Обновить».":
+        "Check your internet connection. If a VPN is on — LitRes opens only from Russian addresses: "
+        "turn the VPN off or add litres.ru to its exceptions, then press “Refresh”.",
+
     # --- Singularity (singularity.py)
     "Токен работает": "The token works",
     "Синхронизировано с Singularity {0:%H:%M}": "Synced with Singularity at {0:%H:%M}",
     "не удалось создать проект «Книги» в Singularity": "couldn't create the “Книги” project in Singularity",
+    "выбранный в Muninhall проект удалён в Singularity — задачи идут в «{0}»":
+        "the project chosen in Muninhall was deleted in Singularity — tasks go to “{0}”",
+    "Проекты": "Projects",
+    "Книги, которые читаю": "Books I'm reading",
+    "«Книги» — создастся сам": "“Книги” — created automatically",
+    "«Хочу прочитать» — создастся сам": "“Хочу прочитать” — created automatically",
     "не удалось создать привычку в Singularity": "couldn't create the habit in Singularity",
     "не удалось получить привычки ({0})": "couldn't get habits ({0})",
     "Токен не подходит — создайте новый с доступом к задачам, проектам и привычкам":

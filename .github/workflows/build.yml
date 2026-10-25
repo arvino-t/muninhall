@@ -45,6 +45,27 @@ jobs:
           $p = Start-Process -FilePath dist\Muninhall\Muninhall.exe -PassThru -Wait
           Get-Content smoke.txt
           if ($p.ExitCode -ne 0 -or -not (Select-String -Path smoke.txt -Pattern 'MUNINHALL_SMOKE_TEST ok' -Quiet)) { exit 1 }
+      - name: Smoke test of the LitRes sign-in page (built-in Chromium)
+        # не блокирует сборку: сайт ЛитРес может не открываться с серверов GitHub; отчёт и снимок — в артефакте
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $env:MUNINHALL_SMOKE_TEST = '1'
+          $env:MUNINHALL_SMOKE_TEST_WEB = '1'
+          $env:MUNINHALL_SMOKE_TEST_FILE = "$PWD\smoke-web.txt"
+          $env:MUNINHALL_SMOKE_TEST_SHOT = "$PWD\smoke-web.png"
+          $p = Start-Process -FilePath dist\Muninhall\Muninhall.exe -PassThru
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); "web: the app hung (killed after 120 s)" | Add-Content smoke-web.txt }
+          Get-Content smoke-web.txt
+          if (-not (Select-String -Path smoke-web.txt -Pattern 'MUNINHALL_SMOKE_TEST web ok' -Quiet)) { exit 1 }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-web-smoke
+          path: |
+            smoke-web.txt
+            smoke-web.png
+          if-no-files-found: ignore
       - name: Installer (Inno Setup)
         shell: pwsh
         run: |

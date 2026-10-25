@@ -18,7 +18,8 @@ from PySide6.QtWidgets import (QButtonGroup, QComboBox, QFrame, QGridLayout, QHB
                                QListWidget, QListWidgetItem, QPushButton, QSlider, QVBoxLayout, QWidget)
 
 from . import core, style
-from .core import LOCAL_SUFFIX, SAFE_LINK_SCHEMES, SCHEME, WEB_DIR, books_dir, log
+from .core import (CONFIG_FILE, DEFAULT_SETTINGS, LOCAL_SUFFIX, SAFE_LINK_SCHEMES, SCHEME, WEB_DIR, books_dir,
+                   load_json, log)
 from .litres import PREFIX
 from .reader_highlights import ReaderHighlights
 from .widgets import HeaderBar, IconButton, Popover, SeekSlider, Switch, attach_popover, cls, label
@@ -36,9 +37,14 @@ def register_scheme():
     Заодно отключаем масштабирование страницы щипком в Chromium — щипок в читалке
     меняет размер шрифта.
     """
-    flags = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "")
-    if "--disable-pinch" not in flags:
-        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (flags + " --disable-pinch").strip()
+    flags = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "").split()
+    wanted = ["--disable-pinch"]
+    # Программная отрисовка (настройка «Аппаратная отрисовка страниц» выключена или
+    # MUNINHALL_SOFTWARE_RENDER=1): Chromium не трогает видеокарту — против белых окон
+    hardware = load_json(CONFIG_FILE, {}).get("hardwareRendering", DEFAULT_SETTINGS["hardwareRendering"])
+    if not hardware or os.environ.get("MUNINHALL_SOFTWARE_RENDER"):
+        wanted.append("--disable-gpu")
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join(flags + [f for f in wanted if f not in flags])
     s = QWebEngineUrlScheme(SCHEME.encode())
     s.setSyntax(QWebEngineUrlScheme.Syntax.Host)
     s.setFlags(QWebEngineUrlScheme.Flag.SecureScheme

@@ -17,7 +17,7 @@ from urllib.parse import urlencode
 
 from PySide6.QtCore import QByteArray, QObject, QTimer, QUrl, Signal
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QPushButton, QSpinBox, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLineEdit, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 from . import libraries
 from .core import CONFIG_DIR, load_json, log, save_json
@@ -41,7 +41,11 @@ DEFAULTS = {
     "daily": False,       # привычка «Чтение N минут»
     "dailyMinutes": 20,
     "libraries": None,    # книги каких библиотек ведём задачами (id; "litres"); None — всех
+    "booksProject": None,     # id проекта для задач «Читаю»; None — свой проект «Книги» (создаётся сам)
+    "wishlistProject": None,  # id проекта для «Хочу прочитать»; None — свой проект «Хочу прочитать»
 }
+# Проект, выбранный пользователем вместо своего: externalId своего → ключ состояния
+CHOSEN = {EXT_BOOKS: "booksProject", EXT_WISHLIST: "wishlistProject"}
 
 
 def minutes_word(n: int) -> str:
@@ -66,6 +70,7 @@ class SingularitySync(QObject):
         self.state.setdefault("sent", {})          # id книги → что отправлено (чтобы не слать лишнего)
         self.state.setdefault("minutes", {})       # дата → секунд чтения/прослушивания
         self.state.setdefault("habitDone", [])     # даты, когда привычка уже отмечена
+        self._verified: set[str] = set()           # id проектов, которые за этот запуск видели живыми
         self.net = QNetworkAccessManager(self)
         self.running = False
         self._again = False
@@ -89,6 +94,7 @@ class SingularitySync(QObject):
             # Другой аккаунт — прежние id задач и проектов к нему не относятся
             self.state["ids"] = {}
             self.state["sent"] = {}
+            self.state["booksProject"] = self.state["wishlistProject"] = None
         self.save()
 
     # --- учёт времени чтения для привычки
@@ -145,7 +151,12 @@ class SingularitySync(QObject):
         reply.finished.connect(finished)
 
     def _list_all(self, path, key, query, done, _acc=None, _offset=0):
-        """Постраничный список (maxCount/offset)."""
+        """Постраничный список (maxCount/offset).
+
+        Листаем до пустой страницы: неполная страница ещё не значит конец — сервер
+        может отфильтровать часть записей уже после разбиения на страницы (так ведут себя
+        копии повторяющихся задач). Пропущенная задача = дубль при следующей синхронизации.
+        """
         acc = [] if _acc is None else _acc
 
         def got(status, payload, err):
@@ -153,8 +164,10 @@ class SingularitySync(QObject):
                 done(None, status, err)
                 return
             items = (payload or {}).get(key) or []
-            acc.extend(items)
-            if len(items) < 500:
+            seen = {it.get("id") for it in acc}
+            fresh = [it for it in items if it.get("id") not in seen]
+            acc.extend(fresh)
+            if not items or not fresh:   # конец списка или сервер не сдвигает offset
                 done(acc, status, "")
             else:
                 self._list_all(path, key, query, done, acc, _offset + len(items))
@@ -207,10 +220,27 @@ class SingularitySync(QObject):
 
     # --- проекты
 
+    def list_projects(self, done):
+        """Проекты аккаунта для выбора в окне: done([(id, «Родитель / Проект»)] | None), по алфавиту пути."""
+        def listed(projects, status, err):
+            if projects is None:
+                done(None)
+                return
+            alive = {p["id"]: p for p in projects if not p.get("removed") and not p.get("deleteDate")
+                     and not p.get("isNotebook")}
+
+            def path(p, depth=0):
+                parent = alive.get(p.get("parent") or "")
+                return (path(parent, depth + 1) + " / " if parent and depth < 5 else "") + (p.get("title") or "")
+            done(sorted(((pid, path(p)) for pid, p in alive.items()), key=lambda r: r[1].lower()))
+        self._list_all("/project", "projects", {}, listed)
+
     def _ensure_project(self, ext, title, emoji, done):
-        """Проект по externalId: находим среди существующих или создаём. done(id | None)."""
-        pid = self.state["ids"].get(ext)
-        if pid:
+        """Проект для задач: выбранный пользователем, если он ещё есть; иначе свой по externalId —
+        находим среди существующих или создаём. done(id | None)."""
+        chosen = self.state.get(CHOSEN.get(ext, ""))
+        pid = chosen or self.state["ids"].get(ext)
+        if pid and pid in self._verified:
             done(pid)
             return
 
@@ -218,16 +248,28 @@ class SingularitySync(QObject):
             if projects is None:
                 done(None)
                 return
+            if chosen:
+                if any(p.get("id") == chosen and not p.get("removed") and not p.get("deleteDate") for p in projects):
+                    self._verified.add(chosen)
+                    done(chosen)
+                    return
+                # выбранный проект удалён в Singularity — возвращаемся к своему, не теряя задач
+                self._errors.append(tr("выбранный в Muninhall проект удалён в Singularity — задачи идут в «{0}»",
+                                       title))
+                self.state[CHOSEN[ext]] = None
+                self.save()
             found = next((p for p in projects if p.get("externalId") == ext and not p.get("removed")), None) \
                 or next((p for p in projects if p.get("title") == title and not p.get("removed")), None)
             if found:
                 self.state["ids"][ext] = found["id"]
+                self._verified.add(found["id"])
                 done(found["id"])
                 return
 
             def created(status, payload, err):
                 if status in (200, 201) and payload and payload.get("id"):
                     self.state["ids"][ext] = payload["id"]
+                    self._verified.add(payload["id"])
                     done(payload["id"])
                 else:
                     done(None)
@@ -278,7 +320,10 @@ class SingularitySync(QObject):
                         if (t.get("externalId") or "").startswith(TASK_EXT) and not t.get("removed")}
                 ops = self._plan(lib, ours, books_pid, wish_pid)
                 self._run_ops(ops, next_step)
-            self._list_all("/task", "tasks", {"includeArchived": "true"}, listed)
+            # includeAllRecurrenceInstances — по документации API без него offset-пагинация
+            # задач ненадёжна
+            self._list_all("/task", "tasks", {"includeArchived": "true",
+                                              "includeAllRecurrenceInstances": "true"}, listed)
 
         self._ensure_project(EXT_BOOKS, "Книги", "1f4da", with_books)
 
@@ -416,7 +461,7 @@ class SingularitySync(QObject):
 def _switches():
     """Что синхронизировать: (ключ состояния, заголовок, пояснение)."""
     return (
-        ("reading", tr("Задачи «Читаю»"), tr("Начатые книги — задачи в проекте «Книги», дочитанные закрываются")),
+        ("reading", tr("Задачи «Читаю»"), tr("Начатые книги — задачи в проекте для книг, дочитанные закрываются")),
         ("progress", tr("Прогресс в задаче"), tr("Процент и текущая глава в заметке задачи")),
         ("wishlist", tr("«Хочу прочитать»"), tr("Непрочитанные книги — задачи в отдельном проекте")),
         ("daily", tr("Ежедневное чтение"), tr("Привычка отмечается сама, когда за день набралось N минут")),
@@ -436,6 +481,7 @@ class SingularityDialog:
         self.box.setSpacing(8)
         self._build_token()
         self._build_switches()
+        self._build_projects()
         self._build_libraries()
         self._build_goal()
         self._build_buttons()
@@ -470,6 +516,37 @@ class SingularityDialog:
             boxed.add_row(title, hint, sw)
             self.switches[key] = sw
         self.box.addWidget(boxed)
+
+    def _build_projects(self):
+        """Куда писать задачи: свой проект (создаётся сам) или любой проект аккаунта."""
+        self.box.addWidget(label(tr("Проекты"), "heading"))
+        boxed = BoxedList()
+        self.projects = {}
+        for key, title, own in (("booksProject", tr("Книги, которые читаю"), tr("«Книги» — создастся сам")),
+                                ("wishlistProject", tr("«Хочу прочитать»"), tr("«Хочу прочитать» — создастся сам"))):
+            c = QComboBox()
+            c.addItem(own, None)
+            c.setMinimumWidth(200)
+            boxed.add_row(title, "", c)
+            self.projects[key] = c
+        self.box.addWidget(boxed)
+        self.load_projects()
+
+    def load_projects(self):
+        """Список проектов аккаунта в выпадающие списки; выбранный ранее остаётся выбранным."""
+        if not self.sync.enabled:
+            return
+
+        def got(rows):
+            for key, c in self.projects.items():
+                chosen = c.currentData() if c.count() > 1 else self.sync.state.get(key)
+                while c.count() > 1:
+                    c.removeItem(1)
+                for pid, path in rows or []:
+                    c.addItem(path, pid)
+                i = c.findData(chosen) if chosen else 0
+                c.setCurrentIndex(max(i, 0))
+        self.sync.list_projects(got)
 
     def _build_libraries(self):
         """Книги каких библиотек ведутся задачами («Хочу прочитать» — только ЛитРес)."""
@@ -517,8 +594,9 @@ class SingularityDialog:
 
     def apply(self):
         chosen = [lid for lid, sw in self.lib_switches.items() if sw.isChecked()]
+        projects = {k: c.currentData() for k, c in self.projects.items() if c.count() > 1}
         self.sync.configure(token=self.token.text().strip(), dailyMinutes=self.goal.value(),
-                            libraries=None if len(chosen) == len(self.lib_switches) else chosen,
+                            libraries=None if len(chosen) == len(self.lib_switches) else chosen, **projects,
                             **{k: sw.isChecked() for k, sw in self.switches.items()})
 
     def check_and_sync(self):
@@ -533,6 +611,7 @@ class SingularityDialog:
             self.run.setEnabled(True)
             self.status.setText(text + (tr("; синхронизирую…") if ok else ""))
             if ok:
+                self.load_projects()
                 self.sync.sync()
         self.sync.check_token(checked)
 

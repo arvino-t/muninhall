@@ -6,6 +6,21 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
 
 ## [Unreleased]
 
+### Added
+- Singularity: choose the projects for tasks — "Books I'm reading" and "Want to read" — from your
+  Singularity projects (Settings → Integrations → Singularity → Projects). By default the app keeps
+  creating its own "Книги" and "Хочу прочитать"; if a chosen project is deleted, tasks go back there.
+
+### Fixed
+- LitRes sign-in: when the site doesn't load (no internet, a VPN — LitRes opens only from Russian
+  addresses — or a crashed built-in browser), the sign-in page says so and offers "Refresh" instead of
+  staying blank. The Windows build now also checks the sign-in page in CI.
+- Windows: the built-in browser (reader, LitRes sign-in) draws without the graphics card by default —
+  with some drivers its windows stayed completely white. Settings → Log → "Hardware page rendering"
+  turns the graphics card back on.
+- Singularity: task listing reads until an empty page and asks for all recurrence instances, so a
+  short page no longer ends the list early and creates duplicate tasks on the next sync.
+
 ## [1.4.0] — 2026-10-24
 
 ### Added

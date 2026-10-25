@@ -67,6 +67,7 @@ class LitresConnector(QObject):
         self.app.push(self.app.login_page)
         if not self.app.litres.logged_in:
             self.app.litres.page.load(QUrl(LOGIN_URL))
+            self.app.watch_login_page()
 
     def on_logout(self):
         if confirm(self.app.window, tr("Выйти из ЛитРес?"), tr("<b>Выйти из ЛитРес?</b>"),

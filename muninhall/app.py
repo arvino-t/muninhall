@@ -10,8 +10,8 @@ from pathlib import Path
 from PySide6.QtCore import QEvent, QObject, QProcess, Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon, QShortcut
 from PySide6.QtNetwork import QLocalServer, QLocalSocket, QNetworkAccessManager
-from PySide6.QtWidgets import (QApplication, QFileDialog, QInputDialog, QMainWindow, QMessageBox,
-                               QStackedWidget, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QInputDialog, QMainWindow, QMessageBox,
+                               QPushButton, QStackedWidget, QVBoxLayout, QWidget)
 
 from . import __version__, backup, core, folder_scan, libraries, singularity, style
 from .i18n import tr
@@ -34,7 +34,7 @@ from .focus import FocusStore
 from .review import DailyReview
 from .library import LibraryView
 from .model import Library
-from .widgets import confirm, HeaderBar, IconButton, Toast
+from .widgets import confirm, HeaderBar, IconButton, label, Toast
 
 EBOOK_PATTERNS = "*.epub *.fb2 *.fb2.zip *.fbz *.mobi *.azw3"
 
@@ -323,9 +323,52 @@ class App(QObject, Appearance):
         reload_btn.clicked.connect(lambda: self.litres.view and self.litres.view.reload())
         self.login_header.pack_end(reload_btn)
         lay.addWidget(self.login_header)
+        lay.addWidget(self._build_login_problem())
         # браузер ЛитРес создаётся по требованию — страница входа получит его, когда он появится
         self.litres.view_holder.append(lambda view: lay.addWidget(view, 1))
         return page
+
+    def _build_login_problem(self):
+        """Строка над страницей входа, когда ЛитРес не открылся: вместо пустого окна — что делать."""
+        self.login_problem = QWidget(visible=False)
+        h = QHBoxLayout(self.login_problem)
+        h.setContentsMargins(16, 10, 16, 10)
+        self.login_problem_text = label("", wrap=True)
+        h.addWidget(self.login_problem_text, 1)
+        retry = QPushButton(tr("Обновить"))
+        retry.clicked.connect(self.retry_login_page)
+        h.addWidget(retry)
+        # не дождались страницы — показываем подсказку; дождались — прячем
+        self._login_wait = QTimer(self, singleShot=True, interval=12_000)
+        self._login_wait.timeout.connect(lambda: self.litres.page_ready or self.login_problem.isVisible()
+                                         or self.show_login_problem(tr("ЛитРес долго не отвечает.")))
+        return self.login_problem
+
+    def watch_login_page(self):
+        """Вызывается при открытии страницы входа: следим, дошла ли страница ЛитРес."""
+        self.login_problem.setVisible(False)
+        self._login_wait.start()
+        page = self.litres.page
+        if page is not None and not getattr(page, "_login_watched", False):
+            page._login_watched = True
+            page.loadFinished.connect(lambda ok: ok or self.show_login_problem(tr("Не удалось открыть ЛитРес.")))
+            page.loadStarted.connect(lambda: self.login_problem.setVisible(False))
+            page.renderProcessTerminated.connect(
+                lambda *_: self.show_login_problem(tr("Встроенный браузер остановился.")))
+
+    def show_login_problem(self, what: str):
+        if self.stack.currentWidget() is not self.login_page or self.litres.logged_in:
+            return
+        self.login_problem_text.setText(what + " " + tr(
+            "Проверьте интернет. Если включён VPN — ЛитРес открывается только с российских адресов: "
+            "отключите VPN или добавьте litres.ru в его исключения, затем нажмите «Обновить»."))
+        self.login_problem.setVisible(True)
+
+    def retry_login_page(self):
+        self.login_problem.setVisible(False)
+        self._login_wait.start()
+        if self.litres.page is not None:
+            self.litres.page.load(QUrl(core.LOGIN_URL))
 
     # --- фильтры
 
@@ -919,15 +962,53 @@ def _listen(app) -> QLocalServer:
 
 
 def _smoke_test(app, qapp):
-    """Проверка сборки (CI): окно поднялось, библиотека построена — выходим с кодом 0."""
-    def smoke():
-        line = f"MUNINHALL_SMOKE_TEST ok: {APP_NAME} {__version__}, books: {len(app.library.ordered())}"
+    """Проверка сборки (CI): окно поднялось, библиотека построена — выходим с кодом 0.
+
+    С MUNINHALL_SMOKE_TEST_WEB=1 — ещё и встроенный Chromium: открываем страницу входа ЛитРес и ждём
+    загрузки (до MUNINHALL_SMOKE_TEST_WEB_MS); в отчёт — дошла ли страница и что в ней."""
+    lines = []
+
+    def say(line):
+        lines.append(line)
         print(line, flush=True)
         if os.environ.get("MUNINHALL_SMOKE_TEST_FILE"):    # у оконной сборки Windows нет консоли
-            Path(os.environ["MUNINHALL_SMOKE_TEST_FILE"]).write_text(line + "\n", encoding="utf-8")
+            Path(os.environ["MUNINHALL_SMOKE_TEST_FILE"]).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def smoke():
+        say(f"MUNINHALL_SMOKE_TEST ok: {APP_NAME} {__version__}, books: {len(app.library.ordered())}")
         app.window.close()
         qapp.quit()
-    QTimer.singleShot(int(os.environ.get("MUNINHALL_SMOKE_TEST_MS", "4000")), smoke)
+
+    if not os.environ.get("MUNINHALL_SMOKE_TEST_WEB"):
+        QTimer.singleShot(int(os.environ.get("MUNINHALL_SMOKE_TEST_MS", "4000")), smoke)
+        return
+    from PySide6 import __version__ as pyside_version
+    say(f"web: PySide6 {pyside_version}, chromium flags: {os.environ.get('QTWEBENGINE_CHROMIUM_FLAGS', '')!r}")
+    loads = []
+
+    def web_started():
+        app.litres.start()
+        page = app.litres.page
+        page.loadFinished.connect(lambda ok: (loads.append(ok), say(f"web: loadFinished ok={ok} url={page.url().toString()}")))
+        page.renderProcessTerminated.connect(
+            lambda status, code: say(f"web: render process terminated status={status} code={code}"))
+        app.show_login()
+
+    def web_report():
+        page = app.litres.page
+
+        def got(text):
+            say(f"web: page_ready={app.litres.page_ready} loads={loads} title={page.title()!r} "
+                f"text chars={len(text or '')}")
+            # текст страницы входа React-приложения toPlainText может не отдать — достаточно заголовка
+            say("MUNINHALL_SMOKE_TEST web " + ("ok" if any(loads) and page.title() else "FAILED"))
+            if os.environ.get("MUNINHALL_SMOKE_TEST_SHOT"):      # снимок окна — что видит пользователь
+                app.window.grab().save(os.environ["MUNINHALL_SMOKE_TEST_SHOT"])
+            smoke()
+        page.toPlainText(got)
+        QTimer.singleShot(5000, lambda: lines[-1].startswith("MUNINHALL_SMOKE_TEST") or got(""))  # страница мертва
+    QTimer.singleShot(1000, web_started)
+    QTimer.singleShot(int(os.environ.get("MUNINHALL_SMOKE_TEST_WEB_MS", "45000")), web_report)
 
 
 def main(argv=None):

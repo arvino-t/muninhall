@@ -224,6 +224,9 @@ DEFAULT_SETTINGS = {
     "readingCharsPerMin": 1300,
     # Подробный журнал (то же, что MUNINHALL_DEBUG=1)
     "debugLog": False,
+    # Встроенный Chromium рисует видеокартой. На Windows по умолчанию выключено: с частью драйверов
+    # окна браузера (вход в ЛитРес, читалка) остаются белыми
+    "hardwareRendering": sys.platform != "win32",
     # Последняя открытая вкладка настроек
     "settingsTab": "general",
     # Язык интерфейса: auto (как в системе) / ru / en — применяется после перезапуска

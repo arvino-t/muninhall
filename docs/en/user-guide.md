@@ -338,6 +338,11 @@ projects and habits) and choose what to sync:
   "Книги" as the same task.
 - **Daily reading** — the "Чтение N минут" habit is checked automatically once you reach N minutes
   of reading or listening in a day.
+- **Projects** — where tasks go: "Books I'm reading" and "Want to read". By default the app creates
+  its own "Книги" and "Хочу прочитать" projects; the list lets you pick any project in your
+  Singularity (it appears once the token is in). Started books move to the new project on the next
+  sync, finished ones stay where they are. If the chosen project is deleted in Singularity, tasks go
+  back to the app's own project.
 - **Libraries** — whose books become tasks (all libraries by default; "Want to read" is LitRes-only).
 
 Sync runs after the LitRes sync, when you mark a book as read and every couple of minutes while you
