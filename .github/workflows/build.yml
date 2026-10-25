@@ -111,6 +111,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: out
+          pattern: "{windows,flatpak}"     # отчёт проверки входа (windows-web-smoke) — не для выпуска
           merge-multiple: true
       - name: Attach to the release
         env:
