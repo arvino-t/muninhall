@@ -22,6 +22,9 @@
   </developer>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.4.1" date="2026-10-26">
+      <description><p>The LitRes sign-in window no longer stays white on Windows (advertising counters on LitRes pages are blocked) and explains what to do when LitRes doesn't load; choose your own Singularity projects for books; no more duplicate Singularity tasks.</p></description>
+    </release>
     <release version="1.4.0" date="2026-10-24">
       <description><p>A Focus page with the mastery map: topics you know by level, where to look next and one-click focus from any topic; wiki page fixes; internal refactoring.</p></description>
     </release>
