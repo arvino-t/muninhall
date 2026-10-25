@@ -13,7 +13,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from PySide6.QtCore import QObject, QTimer, QUrl, Signal
 from PySide6.QtWebEngineCore import (QWebEngineDownloadRequest, QWebEnginePage, QWebEngineProfile,
-                                     QWebEngineScript)
+                                     QWebEngineScript, QWebEngineUrlRequestInterceptor)
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from .core import (API, CACHE_DIR, DROP_HEADERS, HEADERS_FILE, SESSION_DIR, SITE, WEB_DIR, load_json,
@@ -21,6 +21,29 @@ from .core import (API, CACHE_DIR, DROP_HEADERS, HEADERS_FILE, SESSION_DIR, SITE
 from .i18n import tr
 
 PREFIX = "⁣LITREADER:"   # метка наших сообщений в консоли страницы
+
+# Рекламные и аналитические счётчики на страницах ЛитРес. Для входа и API они не нужны, а счётчик МТС,
+# снимающий «отпечаток» браузера (перебор видео- и аудиоформатов), роняет процесс страницы встроенного
+# Chromium — окно входа остаётся белым (на Windows — почти всегда). Вход через VK, Яндекс ID и Сбер ID
+# сюда не входит.
+BLOCKED_HOSTS = ("a.mts.ru", "mc.yandex.ru", "mc.yandex.com", "an.yandex.ru", "yandexadexchange.net",
+                 "adfox.ru", "ads.adfox.ru", "top-fwz1.mail.ru", "ad.mail.ru", "ads.vk.com", "ad.vk.com",
+                 "vk-ads.com", "googletagmanager.com", "google-analytics.com", "doubleclick.net",
+                 "googlesyndication.com", "criteo.com", "criteo.net", "mediasniper.ru", "adriver.ru",
+                 "sber-ads.ru", "tns-counter.ru", "mytarget.ru", "relap.io")
+
+
+def is_blocked(host: str) -> bool:
+    host = host.lower().rstrip(".")
+    return any(host == h or host.endswith("." + h) for h in BLOCKED_HOSTS)
+
+
+class _Blocker(QWebEngineUrlRequestInterceptor):
+    """Не загружает счётчики из BLOCKED_HOSTS."""
+
+    def interceptRequest(self, info):
+        if is_blocked(info.requestUrl().host()):
+            info.block(True)
 
 
 class _Page(QWebEnginePage):
@@ -75,6 +98,8 @@ class LitresSession(QObject):
         self.profile.setPersistentCookiesPolicy(
             QWebEngineProfile.PersistentCookiesPolicy.ForcePersistentCookies)
         self.profile.downloadRequested.connect(self._on_download)
+        self._blocker = _Blocker(self)
+        self.profile.setUrlRequestInterceptor(self._blocker)
 
         hook = QWebEngineScript()
         hook.setName("litreader-hook")

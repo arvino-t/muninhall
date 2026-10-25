@@ -12,6 +12,10 @@ All notable changes to Muninhall (called LitRes Reader / «Читалка Лит
   creating its own "Книги" and "Хочу прочитать"; if a chosen project is deleted, tasks go back there.
 
 ### Fixed
+- LitRes sign-in window stayed completely white (Windows): an advertising counter on LitRes pages
+  (MTS, browser fingerprinting) crashed the built-in browser's page process, and the app then hung on
+  exit. LitRes pages no longer load advertising and analytics counters; sign-in via VK, Yandex ID and
+  Sber ID is unaffected.
 - LitRes sign-in: when the site doesn't load (no internet, a VPN — LitRes opens only from Russian
   addresses — or a crashed built-in browser), the sign-in page says so and offers "Refresh" instead of
   staying blank. The Windows build now also checks the sign-in page in CI.
